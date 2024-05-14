@@ -1,0 +1,1843 @@
+---
+title: "final_report"
+author: "lisa liubovich"
+date: "2024-05-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Final Report: **Application of the integrated gateway model on child nutrition behaviors in Niger**
+
+## by Lisa Liubovich, Remy Sorensen, and Hawa Toumbou
+
+# Introduction
+
+*Application of the integrated gateway model on child nutrition behaviors in Niger: An exploratory analysis* by Leanne Dougherty and Chaibou Dadi uses the Integrated Gateway Model (adapted from Schwandt et. al., 2015) to identify potential factors and behaviors that are associated with the World Health Organization's infant and young child feeding (IYCF) practices ("Global strategy for infant and young child feeding", 2003) in the Maradi and Zinder regions of Niger. This framework aims to support positive behaviors in reproductive, maternal, and child health, which supports more comprehensive nutritional communication strategies.
+
+# Summary of the Data
+
+The data was collected via survey from 2021 to February 2023. The survey data consists of responses from 2,727 married women of reproductive age (MWRA) including details on child feeding practices for their 2,551 children between the ages of 0 to 23 months. Our cleaned data selected 30 of the 900 + variables to the best of our ability (see critiques section for details). These variables are organized under the following structure:
+
+-   Gateway behaviors:
+
+    -   antenatal care (received_antenatal care): percentage of MRWA who have given birth in the last 5 years and received antenatal care for their last pregnancy; 1 = received antenatal care, 0 = otherwise
+
+    -   facility delivery (fac_delivery): percentage of MWRA who have given birth in the years preceding the survey who delivered in a facility for their last birth
+
+    -   communication in nutrition practices (nutrition): percentage of MWRA who spoke with 1) husband/partner, 2) family member, 3) health provider, 4) nobody about child's nutrition
+
+-   Gateway Factors
+
+    -   Behavioral determinants on 4 IYCF practices (early initiation of breastfeeding, exclusive breastfeeding, minimum meal frequency, and minimum dietary diversity)
+
+        -   Knowledge:
+
+            -   know_1: percentage of MRWA who state it is healthy for a woman to give only breast milk for the first 6 months; 1 = those who agree it is healthy for a woman to give a child only breastmilk for the first 6 months, 0 otherwise
+
+            -   know_2: percentage of MWRA who reported a child 6-23 months should eat 4 or more meals each day; 1 = those who agree a child 6-23 months should receive 4 or meals a day, 0 otherwise
+
+            -   know 3: percentage of MWRA who reported that the number of different types of food a child 6-23 months should eat a day is 4 or more; 1 = those who agree a child 6-23 months should receive 4 or more different types of food, 0 = otherwise
+
+        -   Attitude
+
+            -   att_1: percentage of MWRA who agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick; 1 = those who agree that if a baby is exclusively breastfed for 6 months, they are less likely to get sick, 0 = otherwise
+
+            -   att_2: percentage of MWRA who agree providing meals 4 times a day ensures them to have adequate strength; 1 = those who agree providing 4 meals a day ensures strength, 0 = otherwise
+
+            -   att_3: percentage of MWRA who agree children who eat a variety of foods are less likely to get sick; 1 = those who agree children who eat a variety of foods are less likely to get sick, 0 = otherwise
+
+        -   Self-efficacy
+
+            -   se_1: percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all; 1 = those who agree only giving breast milk to the baby for the first 6 months is not difficult at all, 0 = otherwise
+
+            -   se_2: percentage of MRWA who agree giving a child a meal 4 times a day is not difficult at all; 1 = those who agree giving a child a meal 4 times a day is not difficult at all, 0 = otherwise
+
+            -   se_3: percentage of MRWA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all; 1 = those who agree that giving a child a minimum of 4 or more different types of food a day is not difficult at all, 0 = otherwise
+
+        -   Perceived norms
+
+            -   pn_1 : percentage of MRWA who agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months; 1 = those who agree people in the community think it is healthy for a woman to give her baby only breast milk for first 6 months, 0 = otherwise
+
+            -   pn_2: percentage of MRWA who believes the number of meals people in community think a child 6-23 months should eat each day is 4 or more; 1 = those who believe the number of meals people in the community think a child 6-23 months should eat each day is 4 or more, 0 = otherwise
+
+            -   pn_3: percentage of MRWA who believes number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more; 1 = those who believe the number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more, 0 = otherwise
+
+    -   decision-making agency (decision_combined): Percentage of MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives; 1 = responded either decides herself or jointly with her partner on all three decision categories, 0 = otherwise
+
+    -   exposure to information (exp): percentage of MWRA who had heard or seen a message related to breastfeeding or young child nutrition; 1 = has been exposed, 0 = otherwise
+
+    -   woman's group participation (wg): Percentage of MRWA who belong to a women's community group; 1 belonged to a womens group, 0 otherwise
+
+-   Control variables:
+
+    -   age: age: percentage of MWRA who reported their current age and grouped (15-24 years, 25-39 years, 35 - 49 years)
+
+    -   parity: Percentage of MRWA who reported living children and grouped (0 children, 1-2 children, 3-4 children, 5-6 children, and 7+ children)
+
+    -   educational attainment (any_edu): percentage of MWRA who reported to have ever gone to school; 0 - no, 1 - yes
+
+    -   household wealth (wealth): percentage of MWRA who reported household assets constructed in wealth terciles (1 = poorest, 3 = richest)
+
+# Models and Methods
+
+```{r loading packages and data}
+library(tidyverse)
+library(broom)
+library(ggplot2)
+library(stats)
+library(GGally)
+library(glmtoolbox)
+niger <- read_csv("./CLEANNigerData.csv")
+# Recode the numeric values into descriptive categories
+niger$nutrition <- factor(niger$nutrition,
+                           levels = c(1, 2, 3, 4, 5, 96, 99),
+                           labels = c("husband/partner", "family member", "health provider", "mother in law", "friends", "other", "don't know"))
+
+# Convert the factor into a new factor with 4 levels
+niger$nutrition <- cut(as.numeric(niger$nutrition), breaks = c(0, 1, 2, 3, 99), labels = c(1, 2, 3, 4))
+
+```
+
+Our models were constructed based on the variables identified in Table 1 , Table 3, and Table 4 within the article. The variables chosen are based on our best approximation of these identified variables (see critiques section for further details).
+
+Our models below do not contain control variables i in order to prevent overfitting.
+
+## Early Initiation of Breastfeeding
+
+### Model 1:
+
+```{r eib model 1}
+glm_eib_1 <- glm( se_1 ~ know_1 + att_1 + pn_1 + exp + decision_combined + wg + received_antenatal_care, 
+              family = binomial(link = "logit"), 
+              data = niger)
+
+tidy(glm_eib_1, conf.int = TRUE)
+
+# Odds Ratio
+odds_ratios_eib1 <- exp(coef(glm_eib_1))
+odds_ratios_eib1
+```
+
+### Model 2:
+
+```{r eib model 2}
+glm_eib_2 <- glm(se_1 ~ know_1 + att_1 + pn_1  + exp + decision_combined + wg + fac_delivery, 
+              family = binomial(link = "logit"), 
+              data = niger)
+
+tidy(glm_eib_2, conf.int = TRUE)
+
+# Odds Ratio
+odds_ratios_eib2 <- exp(coef(glm_eib_2))
+odds_ratios_eib2
+```
+
+### Model 3:
+
+```{r eib model 3}
+glm_eib_3 <- glm(se_1 ~ know_1 + att_1  + pn_1 + exp + decision_combined + wg + nutrition,  
+              family = binomial(link = "logit"), 
+              data = niger)
+tidy(glm_eib_3, conf.int = TRUE)
+
+# Odds Ratio
+odds_ratios_eib3 <- exp(coef(glm_eib_3))
+odds_ratios_eib3
+```
+
+## Exclusive Initiation of Breastfeeding
+
+### Model 1:
+
+```{r exib model 1}
+glm_exib_1 <- glm(se_1 ~ know_1 + att_1 + se_3 + pn_1 + exp + decision_combined + wg + received_antenatal_care, # (removing control variables) + age + parity + any_edu + wealth, 
+              data = niger, 
+              family = binomial)
+
+tidy(glm_exib_1, conf.int = TRUE)
+
+# Odds Ratio
+OR_glm_exib_1 <- exp(coef(glm_exib_1))
+OR_glm_exib_1
+```
+
+### Model 2:
+
+```{r exib model 2}
+glm_exib_2 <- glm(se_1 ~ know_1 + att_1 + se_3 + pn_1 + exp + decision_combined + wg + fac_delivery, # + age + parity + any_edu + wealth, 
+              data = niger, 
+              family = binomial)
+
+tidy(glm_exib_2, conf.int = TRUE)
+
+# Odds Ratio
+OR_glm_exib_2 <- exp(coef(glm_exib_2))
+OR_glm_exib_2
+```
+
+### Model 3:
+
+```{r exib model 3}
+glm_exib_3 <- glm(se_1 ~ know_1 + att_1 + se_3 + pn_1 + exp + decision_combined + wg + nutrition, # + age + parity + any_edu + wealth, 
+              data = niger, 
+              family = binomial)
+
+tidy(glm_exib_3, conf.int = TRUE)
+
+# Odds Ratio
+OR_glm_exib_3 <- exp(coef(glm_exib_3))
+OR_glm_exib_3
+```
+
+## Minimum Meal Frequency
+
+Note: these are models fit according to the exact specifications of the article. The models we will interpret/evaluate may be different based on the evaluation of assumptions.
+
+### Model 1:
+
+```{r mmf model 1}
+glm_mmf_1 <- glm(know_2 ~ att_2 + se_2 + pn_2 + exp + decision_combined + wg + received_antenatal_care, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+tidy(glm_mmf_1, conf.int = TRUE)
+
+# Odds ratio:
+odds_ratios_mmf1 <- exp(coef(glm_mmf_1))
+odds_ratios_mmf1
+```
+
+### Model 2:
+
+```{r mmf model 2}
+glm_mmf_2 <- glm(know_2 ~ att_2 + se_2 + pn_2 + exp + decision_combined + wg + fac_delivery, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+tidy(glm_mmf_2, conf.int = TRUE)
+
+# Odds ratio:
+odds_ratios_mmf2 <- exp(coef(glm_mmf_2))
+odds_ratios_mmf2
+```
+
+### Model 3:
+
+```{r mmf model 3}
+glm_mmf_3 <- glm(know_2 ~ att_2 + se_2 + pn_2 + exp + decision_combined + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+tidy(glm_mmf_3, conf.int = TRUE)
+summary(glm_mmf_3)
+
+# Odds ratio:
+odds_ratios_mmf3 <- exp(coef(glm_mmf_3))
+odds_ratios_mmf3
+```
+
+## Minimum Dietary Diversity
+
+### Model 1:
+
+```{r mdd model 1}
+glm_mdd_1 <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp + received_antenatal_care, # + age + parity + any_edu + wealth,
+                 data = niger, 
+                 family = binomial)
+
+# tidy(glm_mdd_1, conf.int = TRUE) idk why this gives me an error
+tidy(glm_mdd_1,)
+
+# Odds Ratio
+odds_ratios_mdd1 <- exp(coef(glm_mdd_1))
+odds_ratios_mdd1
+```
+
+### Model 2:
+
+```{r mdd model 2}
+glm_mdd_2 <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp + fac_delivery, # + age + parity + any_edu + wealth,
+                 data = niger, 
+                 family = binomial)
+
+# tidy(glm_mdd_2, conf.int = TRUE) 
+
+tidy(glm_mdd_2)
+
+# Odds Ratio
+odds_ratios_mdd2 <- exp(coef(glm_mdd_2))
+odds_ratios_mdd2
+```
+
+### Model 3:
+
+```{r mdd model 3}
+glm_mdd_3 <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp + nutrition, # + age + parity + any_edu + wealth,
+                 data = niger, 
+                 family = binomial)
+
+# tidy(glm_mdd_3, conf.int = TRUE)
+tidy(glm_mdd_3)
+
+# Odds Ratio
+odds_ratios_mdd3 <- exp(coef(glm_mdd_3))
+odds_ratios_mdd3
+```
+
+# Assumptions
+
+## Early Initiation of Breastfeeding
+
+### Model 1:
+
+```{r assumptions eib 1}
+# fitting a more complicated model
+niger1 <- mutate(niger, know_1_2 = (know_1^2))
+eib_1_comp <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + decision_combined + wg + received_antenatal_care + know_1 * received_antenatal_care + know_1_2 * received_antenatal_care,
+                 data = niger1, 
+                 family = binomial(link = "logit"))
+
+anova(glm_eib_1, eib_1_comp, test = "LRT")
+
+#fitting the model with cut explanatory variables; cut know_1 
+
+eib1_cut <- glm(se_1 ~ att_1 + pn_1 + exp + decision_combined + wg + received_antenatal_care, 
+                data = niger, 
+                family = binomial(link = "logit"))
+
+anova(eib1_cut, glm_eib_1, test = "LRT")
+
+hltest(glm_eib_1)
+aeib1 <- augment(glm_eib_1)
+
+ggplot(data = aeib1, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+
+```
+
+### Model 2:
+
+```{r assumptions eib 2}
+# fitting a more complicated model
+niger1 <- mutate(niger, know_1_2 = (know_1^2))
+eib_2_comp <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + decision_combined + wg + fac_delivery + know_1 * fac_delivery + know_1_2 * fac_delivery,
+                  data = niger1, 
+                  family = binomial(link = "logit"))
+
+anova(glm_eib_2, eib_2_comp, test = "LRT")
+
+#fitting the model with cut explanatory variables; cut know_1 
+
+eib2_cut <- glm(se_1 ~ att_1 + pn_1 + exp + decision_combined + wg + fac_delivery, 
+                data = niger, 
+                family = binomial(link = "logit"))
+
+anova(eib2_cut, glm_eib_2, test = "LRT")
+
+hltest(glm_eib_2)
+aeib2 <- augment(glm_eib_2)
+
+ggplot(data = aeib2, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+
+```
+
+### Model 3:
+
+```{r assumptions eib 3}
+# fitting a more complicated model
+niger1 <- mutate(niger, know_1_2 = (know_1^2))
+eib_3_comp <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + decision_combined + wg + nutrition + know_1 * nutrition + know_1_2 * nutrition,
+                  data = niger1, 
+                  family = binomial(link = "logit"))
+
+anova(glm_eib_3, eib_3_comp, test = "LRT")
+
+#fitting the model with cut explanatory variables; cut know_1 
+
+eib3_cut <- glm(se_1 ~ att_1 + pn_1 + exp + decision_combined + wg + nutrition, 
+                data = niger, 
+                family = binomial(link = "logit"))
+
+anova(eib3_cut, glm_eib_3, test = "LRT")
+
+hltest(glm_eib_3)
+aeib3 <- augment(glm_eib_3)
+
+ggplot(data = aeib3, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+
+```
+
+## Exclusive Initiation of Breastfeeding
+
+### Model 1:
+
+```{r assumptions exib 1}
+# fitting a more complicated model
+niger_exib_1 <- mutate(niger, know_1_2 = (know_1^2))
+exib1_comp <- glm(se_1 ~ know_1 + know_1_2 + att_1 + se_3 + pn_1 + exp + decision_combined + wg + received_antenatal_care + know_1 * received_antenatal_care + know_1_2 * received_antenatal_care,
+                 data = niger_exib_1, 
+                 family = binomial(link = "logit"))
+
+anova(glm_exib_1, exib1_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut know_1
+
+exib1_cut <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + wg + received_antenatal_care, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+anova(exib1_cut, glm_exib_1, test = "LRT")
+```
+
+```{r exib 1 nonparametric smoother}
+hltest(glm_exib_1)
+aexib1 <- augment(glm_exib_1)
+
+ggplot(data = aexib1, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+For the more complicated model, we have incredibly weak evidence of a model misspecification (p-value = 0.7709). However, for the model where know_1 is cut, we have strong evidence to suggest a model misspecification (p-value \< 0.001). Moreover, the Hosmer-Lemeshow goodness-of-fit test shows strong evidence of a lack of fit given the relatively small p-value (p-value = 0.0030638). Therefore, the cut model exib1_cut is probably the better fit and will be the model we are interpreting.
+
+### Model 2:
+
+```{r assumptions exib 2}
+# fitting a more complicated model
+niger_exib_1 <- mutate(niger, know_1_2 = (know_1^2))
+exib2_comp <- glm(se_1 ~ know_1 + know_1_2 + att_1 + se_3 + pn_1 + exp + decision_combined + wg + fac_delivery + know_1 * fac_delivery + know_1_2 * fac_delivery,
+                 data = niger_exib_1, 
+                 family = binomial(link = "logit"))
+
+anova(glm_exib_2, exib2_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut know_1
+
+exib2_cut <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + wg + fac_delivery, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+anova(exib2_cut, glm_exib_2, test = "LRT")
+```
+
+```{r exib 2 nonparametric smoother}
+hltest(glm_exib_2)
+aexib2 <- augment(glm_exib_2)
+
+ggplot(data = aexib2, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+For the more complicated model, we have incredibly weak evidence of a model misspecification (p-value = 0.9493). However, for the model where know_1 is cut, we have strong evidence to suggest a model misspecification (p-value \< 0.001). Moreover, the Hosmer-Lemeshow goodness-of-fit test shows strong evidence of a lack of fit given the relatively small p-value (p-value = 0.0058478). Therefore, the cut model exib2_cut is probably the better fit and will be the model we are interpreting.
+
+### Model 3:
+
+```{r assumptions exib 3}
+# fitting a more complicated model
+niger_exib_1 <- mutate(niger, know_1_2 = (know_1^2))
+exib3_comp <- glm(se_1 ~ know_1 + know_1_2 + att_1 + se_3 + pn_1 + exp + decision_combined + wg + nutrition + know_1 * nutrition + know_1_2 * nutrition,
+                 data = niger_exib_1, 
+                 family = binomial(link = "logit"))
+
+anova(glm_exib_3, exib3_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut know_1
+
+exib3_cut <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+anova(exib3_cut, glm_exib_3, test = "LRT")
+```
+
+```{r exib 3 nonparametric smoother}
+hltest(glm_exib_3)
+aexib3 <- augment(glm_exib_3)
+
+ggplot(data = aexib3, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+For the more complicated model, we have very weak evidence of a model misspecification (p-value = 0.1528). However, for the model where know_1 is cut, we have strong evidence to suggest a model misspecification (p-value \< 0.001). Moreover, the Hosmer-Lemeshow goodness-of-fit test shows strong evidence of a lack of fit given the small p-value (p-value = 0.00011565). Therefore, the cut model exib3_cut is probably the better fit and will be the model we are interpreting.
+
+## Minimum Meal Frequency
+
+### Model 1:
+
+```{r assumptions mmf 1}
+# fitting a more complicated model
+niger1 <- mutate(niger, att_2_2 = (att_2^2))
+mmf1_comp <- glm(know_2 ~ att_2 + att_2_2 + se_2 + pn_2 + exp + decision_combined + wg + received_antenatal_care + att_2 * received_antenatal_care + att_2_2 * received_antenatal_care,
+                 data = niger1, 
+                 family = binomial(link = "logit"))
+
+anova(glm_mmf_1, mmf1_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut att_2 
+
+mmf1_cut <- glm(know_2 ~ se_2 + pn_2 + exp + decision_combined + wg + received_antenatal_care, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+anova(mmf1_cut, glm_mmf_1, test = "LRT")
+```
+
+```{r mmf 1 nonparametric smoother}
+hltest(glm_mmf_1)
+ammf1 <- augment(glm_mmf_1)
+
+ggplot(data = ammf1, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+For the more complicated model, we have very weak evidence of a model misspecification (p-value = 0.3743). However, for the model where att_2 is cut, we have strong evidence to suggest a model misspecification (p-value \< 0.001). Moreover, the Hosmer-Lemeshow goodness-of-fit test shows moderate to weak evidence of a lack of fit (p-value = 0.0729). Therefore, mmf_cut is probably a better fit and will be the model we are interpreting.
+
+### Model 2:
+
+```{r assumptions mmf 2}
+# fitting a more complicated model
+niger1 <- mutate(niger, att_2_2 = (att_2^2))
+mmf2_comp <- glm(know_2 ~ att_2 + att_2_2 + se_2 + pn_2 + exp + decision_combined + wg + fac_delivery + att_2 * fac_delivery + att_2_2 * fac_delivery, 
+                 data = niger1, 
+                 family = binomial(link = "logit"))
+
+anova(glm_mmf_2, mmf2_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut att_2
+
+mmf2_cut <- glm(know_2 ~ + se_2 + pn_2 + exp + decision_combined + wg + fac_delivery, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf2_cut, glm_mmf_2, test = "LRT")
+```
+
+```{r mmf2 nonparametric smoother}
+hltest(glm_mmf_2)
+ammf2 <- augment(glm_mmf_2)
+
+ggplot(data = ammf2, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+When compared to the more complicated model, there is moderate to weak evidence of model misspecification (p-value= 0.1665). The model where att_2 is cut shows strong evidence of misspecification (p-value \< 0.001). The Hosmer-Lemeshow test shows moderate to weak evidence of a lack of fit (p-value 0.13025). Given the only moderate evidence of overall lack of fit, we should be fine sticking with the original model glm_mmf_2.
+
+### Model 3:
+
+```{r assumptions mmf 3}
+# fitting a more complicated model
+niger1 <- mutate(niger, att_2_2 = (att_2^2))
+mmf3_comp <- glm(know_2 ~ att_2 + att_2_2 + se_2 + pn_2 + exp + decision_combined + wg + nutrition + att_2 * nutrition + att_2_2 * nutrition, 
+                 data = niger1, 
+                 family = binomial(link = "logit"))
+
+anova(glm_mmf_3, mmf3_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut att_2
+mmf3_cut <- glm(know_2 ~ se_2 + pn_2 + exp + decision_combined + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf3_cut, glm_mmf_3, test = "LRT")
+```
+
+```{r mmf 3 nonparametric smoother}
+hltest(glm_mmf_3)
+ammf3 <- augment(glm_mmf_3)
+
+ggplot(data = ammf3, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+When compared to the more complicated model, there is weak/moderate evidence of a misspecification (p-value = 0.07855). However, there is strong evidence to suggest misspecification when comparing the original model to the one where att_2 is cut (p-value \< 0.001). Moreover, the Hosmer-Lemeshow test has a small p-value (p-value = 0.01211), which indicates that there is relatively strong evidence of a lack of fit. Therefore, the model that will be evaluated/intrepreted will be mmf3_cut.
+
+## Minimum Dietary Diversity
+
+### Model 1:
+
+```{r assumptions mdd 1}
+# fitting a more complicated model
+niger2 <- mutate(niger, know_2_2 = (know_2^2))
+mdd1_comp <- glm(know_3 ~ know_2 + know_2_2 + att_3 + se_3 + pn_3 + exp + decision_combined + wg + received_antenatal_care + know_2 * received_antenatal_care + know_2_2 * received_antenatal_care,
+                 data = niger2, 
+                 family = binomial(link = "logit"))
+
+anova(glm_mdd_1, mdd1_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut know_2 
+
+mdd1_cut <- glm(know_3 ~ att_3 + se_3 + pn_3 + exp + decision_combined + wg + received_antenatal_care, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+anova(mdd1_cut, glm_mdd_1, test = "LRT")
+```
+
+```{r mdd 1 nonparametric smoother}
+hltest(glm_mdd_1)
+amdd1 <- augment(glm_mdd_1)
+
+ggplot(data = amdd1, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+When compared to the more complicated model, there is weak evidence of a misspecification (p-value = 0.7165). However, there is strong evidence to suggest misspecification when comparing the original model to the one where know_2 is cut (p-value \< 0.001). Moreover, the Hosmer-Lemeshow test has an extremely small p-value (p-value \< 0.001), which indicates that there is relatively strong evidence of a lack of fit. Therefore, the model that will be evaluated/intrepreted will be mdd1_cut.
+
+### Model 2:
+
+```{r assumptions mdd 2}
+# fitting a more complicated model
+niger2 <- mutate(niger, know_2_2 = (know_2^2))
+mdd2_comp <- glm(know_3 ~ know_2 + know_2_2 + att_3 + se_3 + pn_3 + exp + decision_combined + wg + fac_delivery + know_2 * fac_delivery + know_2_2 * fac_delivery,
+                 data = niger2, 
+                 family = binomial(link = "logit"))
+
+anova(glm_mdd_2, mdd2_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut know_2 
+
+mdd2_cut <- glm(know_3 ~ att_3 + se_3 + pn_3 + exp + decision_combined + wg + fac_delivery, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+anova(mdd2_cut, glm_mdd_2, test = "LRT")
+```
+
+```{r mdd 2 nonparametric smoother}
+hltest(glm_mdd_2)
+amdd2 <- augment(glm_mdd_2)
+
+ggplot(data = amdd2, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+When compared to the more complicated model, there is very strong evidence of a misspecification (p-value \< 0.001). Moreover, the Hosmer-Lemeshow test has an extremely small p-value (p-value \< 0.001), which indicates that there is relatively strong evidence of a lack of fit. Therefore, the model that will be evaluated/intrepreted will be mdd2_cut.
+
+### Model 3:
+
+```{r assumptions mdd 3}
+# fitting a more complicated model
+niger2 <- mutate(niger, know_2_2 = (know_2^2))
+mdd3_comp <- glm(know_3 ~ know_2 + know_2_2 + att_3 + se_3 + pn_3 + exp + decision_combined + wg + nutrition + know_2 * nutrition + know_2_2 * nutrition,
+                 data = niger2, 
+                 family = binomial(link = "logit"))
+
+anova(glm_mdd_3, mdd3_comp, test = "LRT")
+
+#fitting a model with cut explanatory variables; cut know_2 
+
+mdd3_cut <- glm(know_3 ~ att_3 + se_3 + pn_3 + exp + decision_combined + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+
+anova(mdd3_cut, glm_mdd_3, test = "LRT")
+```
+
+```{r mdd 3 nonparametric smoother}
+hltest(glm_mdd_3)
+amdd3 <- augment(glm_mdd_3)
+
+ggplot(data = amdd3, mapping = aes(x = .fitted, y = .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "loess", formula = y ~x)
+```
+
+When compared to the more complicated model, there is very strong evidence of a misspecification (p-value \< 0.001). Moreover, the Hosmer-Lemeshow test has an extremely small p-value (p-value \< 0.001), which indicates that there is relatively strong evidence of a lack of fit. Therefore, the model that will be evaluated/intrepreted will be mdd3_cut.
+
+# Interpretation of Results
+
+Interpretation of coefficients, measures of uncertainty, etc,
+
+## Early Initiation of Breastfeeding
+
+### Model 1:
+
+```{r fitting the updated eib model 1}
+tidy(eib1_cut, conf.int = TRUE)
+
+odds_ratios_eib1_cut <- exp(coef(eib1_cut))
+odds_ratios_eib1_cut
+```
+
+Fitted regression surface:
+
+logit($p_i$) = -0.196 + 0.0532$X_1$ - 0.633$X_2$ + 1.76$X_3$ + 0.0209$X_4$ + 0.356$X_5$ - 0.186$X_6$ where $p_i$ is the estimated likelihood of an MWRA reporting that they agree giving only breast milk to the baby for the first 6 months is not difficult at all, $X_1$ is an indicator for MRWA who agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick, $X_2$ is an indicator for MWRA who agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months, $X_3$ is an indicator for MWRA who had heard or seen a message related to breastfeeding or young child nutrition, $X_4$ is an indicator for MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_5$ is an indicator for MRWA who belong to a women's community group, and $X_6$ is an indicator for MWRA MRWA who have given birth in the last 5 years and received antenatal care for their last pregnancy
+
+Interpretation of regression coefficients/odds:
+
+-   Intercept: When all other variables are set to zero, the odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all initiating breastfeeding early is -0.196.
+
+-   $\beta_1$ : The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.0532 times higher for those that agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick adjusting for the other predictors in the model.However, with a p-value of 0.836, this increase is not statistically significant, meaning we cannot confidently state that attitudes significantly influence the early initiation of breastfeeding in this context.
+
+-   $\beta_2$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.633 times higher for those that agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months adjusting for the other predictors in the model. The p-value of 0.004 indicates that this effect is statistically significant, suggesting that more negative community norms substantially decrease the likelihood of early initiation of breastfeeding.
+
+-   $\beta_3$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 1.76 times higher for those that have exposure to nutrition messages adjusting for the other predictors in the model.The very low p-value (\< 0.001) makes this a highly statistically significant predictor, indicating that exposure to nutrition messages greatly increases the likelihood of early initiation.
+
+-   $\beta_4$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.0209 times higher for those that have combined decision-making scores (pertaining to decisions made jointly with partners on purchases, visits, and health seeking) adjusting for the other predictors in the model. With a p-value of 0.896, this influence is not statistically significant, indicating that decision-making, as measured, does not significantly affect early initiation of breastfeeding.
+
+-   $\beta_5$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.356 times higher for those that have women's groups adjusting for the other predictors in the model.The p-value of 0.005 indicates this effect is statistically significant, demonstrating that involvement in women's groups positively influences early initiation.
+
+-   $\beta_6$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.186 times less for those that have received antenatal care adjusting for the other predictors in the model. The p-value of 0.332 suggests that this decrease is not statistically significant, implying that receiving antenatal care, in this study, does not have a significant impact on early initiation of breastfeeding.
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$ $H_A$: at least one of the regression coefficients is non-zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1X_{i1}$ + $\beta_2X_{i2}$ + $\beta_3X_{i3}$ + $\beta_4X_{i4}$ + $\beta_5X_{i5}$ + $\beta_6X_{i6}$
+
+```{r eib partial associations}
+# testing for an association between se_1 and know_1
+eib1_redk <- glm(se_1 ~ att_1 + pn_1 + exp + decision_combined + wg + received_antenatal_care,data = niger, family = binomial(link = "logit"))
+anova(eib1_redk, glm_eib_1, test = "LRT")
+
+# testing for an association between se_1 and att_1
+eib1_reda <- glm(se_1 ~ know_1 + pn_1 + exp + decision_combined + wg + received_antenatal_care,data = niger, family = binomial(link = "logit"))
+anova(eib1_reda, glm_eib_1, test = "LRT")
+
+# testing for an association between se_1 and pn_1
+eib1_redp <- glm(se_1 ~ know_1 + att_1 + exp + decision_combined + wg + received_antenatal_care,data = niger, family = binomial(link = "logit"))
+anova(eib1_redp, glm_eib_1, test = "LRT")
+
+# testing for an association between se_1 and exp
+eib1_rede <- glm(se_1 ~ know_1 + att_1 + pn_1 + decision_combined + wg + received_antenatal_care,data = niger, family = binomial(link = "logit"))
+anova(eib1_rede,glm_eib_1, test = "LRT")
+
+# testing for an association between se_1 and decision_combined
+eib1_redd <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + wg + received_antenatal_care,data = niger, family = binomial(link = "logit"))
+anova(eib1_redd, glm_eib_1, test = "LRT")
+
+# testing for an association between received_antenatal_care and se_1
+eib1_redr <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + wg + decision_combined,data = niger, family = binomial(link = "logit"))
+anova(eib1_redr,glm_eib_1, test = "LRT")
+
+# testing for an association between wg and se_1
+eib1_redw <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + received_antenatal_care + decision_combined,data = niger, family = binomial(link = "logit"))
+anova(eib1_redw,glm_eib_1, test = "LRT")
+
+```
+
+Based on the analysis of deviance, att_1, received_antenatal_care, and possibly decision_combined and wg, emerge as significant predictors with strong associations to the outcome. These variables not only improve model fit but also highlight key areas (like attitudes and healthcare engagement) that are crucial in influencing the studied behavior or condition.
+
+### Model 2:
+
+```{r fitting the updated eib model 2}
+tidy(eib2_cut, conf.int = TRUE)
+
+odds_ratios_eib2_cut <- exp(coef(eib2_cut))
+odds_ratios_eib2_cut
+```
+
+logit($p_i$) = -1.26 + 0.200$X_1$ - 0.585$X_2$ + 1.61$X_3$ + 0.0416$X_4$ + 0.527$X_5$ + 1.33$X_6$ where $p_i$ is the estimated likelihood of an MWRA reporting that they agree giving only breast milk to the baby for the first 6 months is not difficult at all, $X_1$ is an indicator for MRWA who agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick, $X_2$ is an indicator for MWRA who agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months, $X_3$ is an indicator for MWRA who had heard or seen a message related to breastfeeding or young child nutrition, $X_4$ is an indicator for MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_5$ is an indicator for MRWA who belong to a women's community group, and $X_6$ is an indicator for MWRA who have given birth in the years preceding the survey who delivered in a facility for their last birth
+
+Interpretation of regression coefficients/odds:
+
+-   Intercept: When all other variables are set to zero, the odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all initiating breastfeeding early is -1.26.
+
+-   $\beta_1$ : The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.200 times higher for those that agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick adjusting for the other predictors in the model. A p-value of 0.443 indicates that this effect is not statistically significant, indicating that while there is a positive association, it is not strong enough to confirm a definitive impact on the outcome.
+
+-   $\beta_2$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.585 times less for those that agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months adjusting for the other predictors in the model.The p-value of 0.0115 indicates that this effect is statistically significant, suggesting that more negative community norms substantially decrease the likelihood of the outcome.
+
+-   $\beta_3$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 1.61 times higher for those that have exposure to nutrition messages adjusting for the other predictors in the model.The very low p-value (\< 0.001) suggests this is a highly statistically significant predictor, indicating that exposure to nutrition messages greatly increases the likelihood of the outcome.
+
+-   $\beta_4$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.0416 times higher for those that have combined decision-making scores (pertaining to decisions made jointly with partners on purchases, visits, and health seeking) adjusting for the other predictors in the model. With a p-value of 0.797, this influence is not statistically significant, indicating that decision-making, as measured, does not significantly affect early initiation of breastfeeding.
+
+-   $\beta_5$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.527 times higher for those that have participation in women's groups adjusting for the other predictors in the model. The p-value of 8.72e-5 indicates this effect is statistically significant, demonstrating that involvement in women's groups positively influences early initiation.
+
+-   $\beta_6$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 1.33 times higher for those that have delivered in a facility adjusting for the other predictors in the model. The p-value of 2.39e-24 suggests that this increase is highly statistically significant, indicating that facility deliveries are a strong predictor of the outcome.
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$ $H_A$: at least one of the regression coefficients is non-zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1X_{i1}$ + $\beta_2X_{i2}$ + $\beta_3X_{i3}$ + $\beta_4X_{i4}$ + $\beta_5X_{i5}$ + $\beta_6X_{i6}$
+
+```{r eib2 partial associations}
+# testing for an association between se_1 and know_1
+eib2_redk <- glm(se_1 ~ att_1 + pn_1 + exp + decision_combined + wg + fac_delivery,data = niger, family = binomial(link = "logit"))
+anova(eib2_redk, glm_eib_2, test = "LRT")
+
+# testing for an association between se_1 and att_1
+eib2_reda <- glm(se_1 ~ know_1 + pn_1 + exp + decision_combined + wg + fac_delivery,data = niger, family = binomial(link = "logit"))
+anova(eib1_reda, glm_eib_2, test = "LRT")
+
+# testing for an association between se_1 and pn_1
+eib2_redp <- glm(se_1 ~ know_1 + att_1 + exp + decision_combined + wg + fac_delivery,data = niger, family = binomial(link = "logit"))
+anova(eib1_redp, glm_eib_2, test = "LRT")
+
+# testing for an association between se_1 and exp
+eib2_rede <- glm(se_1 ~ know_1 + att_1 + pn_1 + decision_combined + wg + fac_delivery,data = niger, family = binomial(link = "logit"))
+anova(eib1_rede, glm_eib_2, test = "LRT")
+
+# testing for an association between wg and se_1
+eib2_redw <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + decision_combined + fac_delivery ,data = niger, family = binomial(link = "logit"))
+anova(eib2_redw, glm_eib_3, test = "LRT")
+
+# testing for an association between se_1 and decision_combined
+eib2_redd <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + wg + fac_delivery,data = niger, family = binomial(link = "logit"))
+anova(eib1_redd, glm_eib_2, test = "LRT")
+
+# testing for an association between fac_delivery and se_1
+eib2_redr <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + wg + decision_combined,data = niger, family = binomial(link = "logit"))
+anova(eib2_redr, glm_eib_2, test = "LRT")
+```
+
+Facility delivery and exposure to information are strong and significant in predicting the outcome.
+
+### Model 3:
+
+```{r fitting the updated eib model 3}
+tidy(eib3_cut, conf.int = TRUE)
+
+odds_ratios_eib3_cut <- exp(coef(eib3_cut))
+odds_ratios_eib3_cut
+```
+
+logit($p_i$) = -0.374 + 0.0625$X_1$ - 0.625$X_2$ + 1.75$X_3$ + 0.0488$X_4$ + 0.359$X_5$ - 0.000408$X_6$
+
+Interpretation of regression coefficients/odds:
+
+-   Intercept: When all other variables are set to zero, the odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all initiating breastfeeding early is -0.374.
+
+-   $\beta_1$ : The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.0625 times higher for those that agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick adjusting for the other predictors in the model. A p-value of 8.08e- 1 indicates that this effect is not statistically significant, indicating that while there is a positive association, it is not strong enough to confirm a definitive impact on the outcome.
+
+-   $\beta_2$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.625 times less for those that agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months adjusting for the other predictors in the model.The p-value of 0.00449, which is less than 0.05, indicating that this effect is statistically significant and a strong predictor in the model.
+
+-   $\beta_3$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 1.75 times higher for those that have exposure to nutrition messages adjusting for the other predictors in the model. The very low p-value (\< 0.001) suggests this is a highly statistically significant predictor, indicating that exposure to nutrition messages greatly increases the likelihood of the outcome.
+
+-   $\beta_4$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.0488 times higher for those that have combined decision-making scores (pertaining to decisions made jointly with partners on purchases, visits, and health seeking) adjusting for the other predictors in the model. With a p-value of 0.755, indicating that the influence of combined decision-making is not statistically significant.
+
+-   $\beta_5$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.359 times higher for those that have participation in women's groups adjusting for the other predictors in the model. The p-value of 0.00482, which is statistically significant, pointing to a meaningful impact of this predictor.
+
+-   $\beta_6$: The odds of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.000408 times less for those that have delivered in a facility adjusting for the other predictors in the model. The p-value of 0.863, suggesting that this variable's impact is not statistically significant.
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$ $H_A$: at least one of the regression coefficients is non-zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1X_{i1}$ + $\beta_2X_{i2}$ + $\beta_3X_{i3}$ + $\beta_4X_{i4}$ + $\beta_5X_{i5}$ + $\beta_6X_{i6}$
+
+```{r eib3 partial associations}
+# testing for an association between se_1 and know_1
+eib3_redk <- glm(se_1 ~ att_1 + pn_1 + exp + decision_combined + wg + nutrition,data = niger, family = binomial(link = "logit"))
+anova(eib3_redk, glm_eib_3, test = "LRT")
+
+# testing for an association between se_1 and att_1
+eib3_reda <- glm(se_1 ~ know_1 + pn_1 + exp + decision_combined + wg + nutrition,data = niger, family = binomial(link = "logit"))
+anova(eib1_reda, glm_eib_3, test = "LRT")
+
+# testing for an association between se_1 and pn_1
+eib3_redp <- glm(se_1 ~ know_1 + att_1 + exp + decision_combined + wg + nutrition,data = niger, family = binomial(link = "logit"))
+anova(eib3_redp, glm_eib_3, test = "LRT")
+
+# testing for an association between se_1 and exp
+eib3_rede <- glm(se_1 ~ know_1 + att_1 + pn_1 + decision_combined + wg + nutrition,data = niger, family = binomial(link = "logit"))
+anova(eib1_rede, glm_eib_3, test = "LRT")
+
+# testing for an association between se_1 and decision_combined
+eib3_redd <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + wg + nutrition,data = niger, family = binomial(link = "logit"))
+anova(eib3_redd, glm_eib_3, test = "LRT")
+
+# testing for an association between wg and se_1
+eib3_redw <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + decision_combined + nutrition ,data = niger, family = binomial(link = "logit"))
+anova(eib3_redw, glm_eib_3, test = "LRT")
+
+# testing for an association between nutrition and se_1
+eib3_redr <- glm(se_1 ~ know_1 + att_1 + pn_1 + exp + wg + decision_combined,data = niger, family = binomial(link = "logit"))
+anova(eib3_redr, glm_eib_3, test = "LRT")
+```
+
+We have very strong evidence to suggest an association between se_1 and exp (p-value \< 0.001), se_1 and wg (p-value 0.006149), se_1 and pn_1(p-value 8.325e-08 ), se_1 and know_1(p-value 6.832e-12 )
+
+## Exclusive Initiation of Breastfeeding
+
+### Model 1:
+
+```{r fitting the updated exib model 1}
+tidy(exib1_cut, conf.int = TRUE)
+
+odds_ratios_exib1_cut <- exp(coef(exib1_cut))
+odds_ratios_exib1_cut
+```
+
+Fitted regression surface:
+
+logit($p_i$) = -0.676 + 0.407$X_1$ + 2.067$X_2$ - 0.723$X_3$ + 1.582$X_4$ + 0.020$X_5$ + 0.415$X_6$ - 0.147$X_7$ where $pi_i$ is the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all, $X_1$ is the percentage of MWRA who agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick, $X_2$ is the percentage of MRWA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all, $X_3$ is the percentage of MRWA who agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months $X_4$ is the percentage of MWRA who had heard or seen a message related to breastfeeding or young child nutrition from the radio, health worker, or community event in the past 3 months, $X_5$ is the Percentage of MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_6$ is the Percentage of MRWA who belong to a women's community group, and $X_7$ is the percentage of MRWA who have given birth in the last 5 years and received antenatal care for their last pregnancy.
+
+```{r confidence intervals exib 1}
+# for intercept
+exp(-1.26)
+exp(-0.09)
+
+# for att_1
+exp(-0.02)
+exp(0.85)
+
+# for se_3
+exp(1.76)
+exp(2.38)
+
+# for pn_1
+exp(-1.06)
+exp(-0.39)
+
+# exp
+exp(1.37)
+exp(1.78)
+
+# decision_combined
+exp(-0.24)
+exp(0.28)
+
+# wg
+exp(0.211)
+exp(0.619)
+    
+ #received_antenatal_care
+ exp(-0.39)
+ exp(0.10)
+```
+
+Intercept: When all predictors are at their reference level, the odds of a MWRA agreeing to give only breast milk to the baby for the first 6 months being not difficult at all is approximately 0.508 times (between 0.28 and 0.91 times in 95% of repeated samples) more than when all predictors are at their alternative levels. $\beta_1$: The odds of a MWRA agreeing that if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick is about 1.50 times more (between 0.98 and 2.34 times more in 95% of repeated samples) for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model. $\beta_2$: The odds of a MWRA agreeing that giving a child a minimum of 4 or more different types of food a day is not difficult at all is about 7.90 times more (between 5.81 and 10.80 times more in 95% of repeated samples) for MWRA who say it is not difficult compared to MWRA who find it difficult, adjusting for the other predictors in the model. $\beta_3$: The odds of a MWRA agreeing that people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months is about 0.48 times (between 0.54 and 0.67 times more in 95% of repeated samples) for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model. $\beta_4$: The odds of a MWRA agreeing that giving only breast milk to the baby for the first 6 months is not difficult at all is about 4.86 times more (between 2.03 and 11.20 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition from the radio, health worker, or community event in the past 3 months compared to MWRA who were not exposed to these messages, adjusting for the other predictors in the model. $\beta_5$: The odds of a MWRA agreeing that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives is about 1.02 times (between 0.79 and 1.32 times more in 95% of repeated samples) for MWRA who responded in the affirmative compared to MWRA who do not, adjusting for the other predictors in the model. $\beta_6$: The odds of a MWRA agreeing that belonging to a women's community group is not difficult at all is about 1.51 times more (between 1.23 and 1.86 times more in 95% of repeated samples) for MWRA who belong to such a group compared to MWRA who do not, adjusting for the other predictors in the model. $\beta_7$: The odds of a MWRA agreeing that giving only breast milk to the baby for the first 6 months is not difficult at all is about 0.86 times (between 0.67 and 1.11 times more in 95% of repeated samples) for MWRA who have given birth in the last 5 years and received antenatal care for their last pregnancy compared to MWRA who have not received antenatal care, adjusting for the other predictors in the model. Testing for associations:
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = $\beta_7$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$ $H_A$: at least one of the regression coefficients is non-zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1X_{i1}$ + $\beta_2X_{i2}$ + $\beta_3X_{i3}$ + $\beta_4X_{i4}$ + $\beta_5X_{i5}$ + $\beta_6X_{i6}$ + $\beta_7$$X_{i7}$ We have very strong evidence to suggest an association between se_3 and exib1 (p-value \< 0.001), pn_1 and exib1 (p-value \< 0.001), exp and exib1 (p-value \< 0.001), moderately strong evidence to suggest an association between att_1 and exib1 (p-value = 0.085), weak evidence to suggest an association between decision_combined and exib1 (p-value = 0.144), wg and exib1 (p-value = 0.048), and received_antenatal_care and exib1 (p-value = 0.107).
+
+```{r exib 1 associations}
+exib1_red <- glm(se_1 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(exib1_red, exib1_cut, test = "LRT")
+```
+
+there is statistically significant evidence that at least one of the predictors is associated with the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all.
+
+```{r exib partial associations}
+# testing for an association between att_1 and se_1
+exib1_reds <- glm(se_1 ~  se_3 + pn_1 + exp + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(exib1_reds, exib1_cut, test = "LRT")
+
+# testing for an association between se_3 and se_1
+exib1_redp <- glm(se_1 ~  att_1 + pn_1 + exp + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(exib1_redp, exib1_cut, test = "LRT")
+
+# testing for an association between exp and se_1
+exib1_rede <- glm(se_1 ~ att_1 + se_3 + pn_1 + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(exib1_rede, exib1_cut, test = "LRT")
+
+# testing for an association between pn_1 and se_1
+exib1_redd <- glm(se_1 ~ att_1 + se_3 + exp + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(exib1_redd, exib1_cut, test = "LRT")
+
+# testing for an association between wg and se_1
+
+exib1_redw <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(exib1_redw, exib1_cut, test = "LRT")
+
+# testing for an association between received_antenatal_care and se_1
+exib1_reda <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + wg, data = niger, family = binomial(link = "logit"))
+anova(exib1_reda, exib1_cut, test = "LRT")
+
+# testing for an association between decision_combined and se_1
+exib1_redq <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(exib1_redq, exib1_cut, test = "LRT")
+```
+
+we have very strong evidence that indicates that se_1 is associated with se_3, exp, pn_1, and wg--all with (p-value \< 0.001). There is moderate evidence of association between se_1 and att_1 with a p-value of 0.06366. There is moderate to weak evidence of association between se_1 and recieved_antenetal_care with a p-value of 0.2557. There is weak evidence of association between se_1 and decision_combined with a p-value of 0.8815.
+
+### Model 2:
+
+```{r fitting the updated exib model 2}
+tidy(exib2_cut, conf.int = TRUE)
+
+odds_ratios_exib2_cut <- exp(coef(exib2_cut))
+odds_ratios_exib2_cut
+```
+
+logit($p_i$) = -1.549 + 0.518$X_1$ + 1.706$X_2$ - 0.574$X_3$ + 1.445$X_4$ + 0.036$X_5$ + 0.508$X_6$ + 1.084$X_7$ where $pi_i$ is the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all, $X_1$ is the percentage of MWRA who agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick, $X_2$ is the percentage of MRWA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all, $X_3$ is the percentage of MRWA who agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months $X_4$ is the percentage of MWRA who had heard or seen a message related to breastfeeding or young child nutrition from the radio, health worker, or community event in the past 3 months, $X_5$ is the Percentage of MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_6$ is the Percentage of MRWA who belong to a women's community group, and $X_7$ is the percentage of MRWA who have given birth in the years preceding the survey who delivered in a facility for their last birth.
+
+```{r confidence intervals exib 2}
+# for intercept
+exp(-2.11)
+exp(-0.99)
+
+# for att_1
+exp(0.08)
+exp(0.96)
+
+# for se_3
+exp(1.39)
+exp(2.02)
+
+# for pn_1
+exp(-0.92)
+exp(-0.23)
+
+# exp
+exp(1.23)
+exp(1.65)
+
+# decision_combined
+exp(-0.23)
+exp(0.30)
+
+# wg
+exp(0.29)
+exp(0.72)
+    
+ #fac_delivery
+ exp(0.87)
+ exp(1.29)
+```
+
+intercept: When all predictors are at their reference level, the odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is approximately 0.508 times (between 0.21 and 0.37 times in 95% of repeated samples) more than when all predictors are at their alternative levels. $\beta_1$: The odds of a MWRA reporting that if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick is about 1.5 times more (between 1.08 and 2.61 times more in 95% of repeated samples) for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model. $\beta_2$: The odds of a MWRA reporting that giving a child a minimum of 4 or more different types of food a day is not difficult at all is about 7.9 times more (between 4.01 and 7.53 times more in 95% of repeated samples) for MWRA who say it is not difficult compared to MWRA who find it difficult, adjusting for the other predictors in the model. $\beta_3$: The odds of a MWRA reporting that people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months is about 0.48 times (between 0.39 and 0.79 times in 95% of repeated samples) more for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model. $\beta_4$: The odds of a MWRA reporting that giving only breast milk to the baby for the first 6 months is not difficult at all is about 4.86 times more (between 2.39 and 3.64 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition compared to MWRA who were not exposed to these messages, adjusting for the other predictors in the model. $\beta_5$: The odds of a MWRA reporting that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives is about 1.02 times more (between 0.79 and 1.34 times more in 95% of repeated samples) for MWRA who responded in the affirmative compared to MWRA who do not, adjusting for the other predictors in the model. $\beta_6$: The odds of a MWRA reporting that belonging to a women's community group is not difficult at all is about 1.5 times more (between 1.33 and 2.05 times more in 95% of repeated samples) for MWRA who belong to such a group compared to MWRA who do not, adjusting for the other predictors in the model. $\beta_7$: The odds of a MWRA reporting that having a facility delivery for their last birth is not difficult at all is about 0.86 times (between 2.39 and 3.63 times more in 95% of repeated samples) for MWRA who delivered in a facility compared to MWRA who did not, adjusting for the other predictors in the model.
+
+```{r exib 2 overall associations}
+exib2_red <- glm(se_1 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(exib2_red, exib2_cut, test = "LRT")
+```
+
+there is statistically significant evidence that at least one of the predictors is associated with the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all.
+
+```{r exib 2 partial associations}
+# testing for an association between att_1 and se_1
+exib2_reds <- glm(se_1 ~  se_3 + pn_1 + exp + decision_combined + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(exib2_reds, exib2_cut, test = "LRT")
+
+# testing for an association between se_3 and se_1
+exib2_redp <- glm(se_1 ~  att_1 + pn_1 + exp + decision_combined + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(exib2_redp, exib2_cut, test = "LRT")
+
+# testing for an association between exp and se_1
+exib2_rede <- glm(se_1 ~ att_1 + se_3 + pn_1 + decision_combined + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(exib2_rede, exib2_cut, test = "LRT")
+
+# testing for an association between pn_1 and se_1
+exib2_redd <- glm(se_1 ~ att_1 + se_3 + exp + decision_combined + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(exib2_redd, exib2_cut, test = "LRT")
+
+# testing for an association between wg and se_1
+
+exib2_redw <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(exib2_redw, exib2_cut, test = "LRT")
+
+# testing for an association between fac_delivery and se_1
+exib2_reda <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + wg, data = niger, family = binomial(link = "logit"))
+anova(exib2_reda, exib2_cut, test = "LRT")
+
+# testing for an association between decision_combined and se_1
+exib2_redq <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(exib2_redq, exib2_cut, test = "LRT")
+```
+
+there is very strong evidence that indicates that se_1 is associated with se_3, exp, pn_1, wg, and fac_delivery with extremely low p-values close to 0. There is relatively strong evidence of an association between se_1 and att_1 with a p-value of 0.01993. There is weak evidence that se_1 and decision_combined are associated with a p-value of 0.7921.
+
+### Model 3:
+
+```{r fitting the updated exib model 3}
+tidy(exib3_cut, conf.int = TRUE)
+
+odds_ratios_exib3_cut <- exp(coef(exib3_cut))
+odds_ratios_exib3_cut
+```
+
+logit($p_i$) = -0.855 + 0.376$X_1$ + 1.956$X_2$ - 0.773$X_3$ + 1.461$X_4$ + 0.170$X_5$ + 0.363$X_6$ + 0.279$X_7$ + 1.391$X_8$ + 0.328$X_9$
+
+where $pi_i$ is the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all, $X_1$ is the percentage of MWRA who agree if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick, $X_2$ is the percentage of MRWA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all, $X_3$ is the percentage of MRWA who agree people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months $X_4$ is the percentage of MWRA who had heard or seen a message related to breastfeeding or young child nutrition from the radio, health worker, or community event in the past 3 months, $X_5$ is the Percentage of MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_6$ is the Percentage of MRWA who belong to a women's community group, and $X_7$ is an indicator for MWRA who spoke with a family member about their child's nutrition, $X_8$ is an indicator for MWRA who spoke with a healthcare worker about their child's nutrition, $X_9$ is an indicator for MWRA who spoke to nobody about their child's nutrition (speaking to husband is the base class)
+
+```{r confidence intervals exib 3}
+# for intercept
+exp(-1.39)
+exp(-0.32)
+
+# for att_1
+exp(-0.04)
+exp(0.81)
+
+# for se_3
+exp(1.65)
+exp(2.27)
+
+# for pn_1
+exp(-1.11)
+exp(-0.44)
+
+# exp
+exp(1.25)
+exp(1.67)
+
+# decision_combined
+exp(-0.09)
+exp(0.44)
+
+# wg
+exp(0.14)
+exp(0.56)
+    
+ 
+```
+
+Interpretation:
+
+Intercept: When all predictors are at their reference level, the odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is approximately 0.425 times (between 0.25 and 0.73 times in 95% of repeated samples) more than when all predictors are at their alternative levels. $\beta_1$: The odds of a MWRA reporting that if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick is about 1.46 times more (between 0.96 and 2.25 times more in 95% of repeated samples) for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model.
+
+$\beta_2$: The odds of a MWRA reporting that giving a child a minimum of 4 or more different types of food a day is not difficult at all is about 7.07 times more (between 5.2 and 9.6 times more in 95% of repeated samples) for MWRA who say it is not difficult compared to MWRA who find it difficult, adjusting for the other predictors in the model.
+
+$\beta_3$: The odds of a MWRA reporting that people in the community think it is healthy for a woman to give her baby only breast milk for the first 6 months is about 0.46 times (between 0.32 and 0.64 times in 95% of repeated samples) more for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model.
+
+$\beta_4$: The odds of a MWRA reporting that giving only breast milk to the baby for the first 6 months is not difficult at all is about 4.31 times more (between 3.5 and 5.3 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition compared to MWRA who were not exposed to these messages, adjusting for the other predictors in the model. $\beta_5$: The odds of a MWRA reporting that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives is about 1.18 times more (between 0.91 and 1.55 times more in 95% of repeated samples) for MWRA who responded in the affirmative compared to MWRA who do not, adjusting for the other predictors in the model.
+
+$\beta_6$: The odds of a MWRA reporting that belonging to a women's community group is not difficult at all is about 1.44 times more (between 1.44 and 1.75 times more in 95% of repeated samples) for MWRA who belong to such a group compared to MWRA who do not, adjusting for the other predictors in the model.
+
+```{r exib 3 overall associations}
+exib3_red <- glm(se_1 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(exib3_red, exib3_cut, test = "LRT")
+```
+
+there is statistically significant evidence that at least one of the predictors is associated with the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all.
+
+```{r exib 3 associations again}
+exib3_red <- glm(se_1 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(exib3_red, exib3_cut, test = "LRT")
+```
+
+there is statistically significant evidence that at least one of the predictors is associated with the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all.
+
+```{r exib 2 associations}
+exib2_red <- glm(se_1 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(exib2_red, exib2_cut, test = "LRT")
+```
+
+there is statistically significant evidence that at least one of the predictors is associated with the percentage of MWRA who agree giving only breast milk to the baby for the first 6 months is not difficult at all.
+
+```{r exib 3 partial associations}
+# testing for an association between att_1 and se_1
+exib3_reds <- glm(se_1 ~  se_3 + pn_1 + exp + decision_combined + wg + nutrition, data = niger, family = binomial(link = "logit"))
+anova(exib3_reds, exib3_cut, test = "LRT")
+
+# testing for an association between se_3 and se_1
+exib3_redp <- glm(se_1 ~  att_1 + pn_1 + exp + decision_combined + wg + nutrition, data = niger, family = binomial(link = "logit"))
+anova(exib3_redp, exib3_cut, test = "LRT")
+
+# testing for an association between exp and se_1
+exib3_rede <- glm(se_1 ~ att_1 + se_3 + pn_1 + decision_combined + wg + nutrition, data = niger, family = binomial(link = "logit"))
+anova(exib3_rede, exib3_cut, test = "LRT")
+
+# testing for an association between pn_1 and se_1
+exib3_redd <- glm(se_1 ~ att_1 + se_3 + exp + decision_combined + wg + nutrition, data = niger, family = binomial(link = "logit"))
+anova(exib3_redd, exib3_cut, test = "LRT")
+
+# testing for an association between wg and se_1
+
+exib3_redw <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + nutrition, data = niger, family = binomial(link = "logit"))
+anova(exib3_redw, exib3_cut, test = "LRT")
+
+# testing for an association between nutrition and se_1
+exib3_reda <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + decision_combined + wg, data = niger, family = binomial(link = "logit"))
+anova(exib3_reda, exib3_cut, test = "LRT")
+
+# testing for an association between decision_combined and se_1
+exib3_redq <- glm(se_1 ~ att_1 + se_3 + pn_1 + exp + wg + nutrition, data = niger, family = binomial(link = "logit"))
+anova(exib3_redq, exib3_cut, test = "LRT")
+```
+
+there is very strong evidence that indicates that se_1 is associated with se_3, exp, pn_1, wg, and nutrition with extremely low p-values close to 0. There is moderate to weak evidence of association between se_1 and decision_combined with a p-value of 0.2132. There is moderate to strong evidence of association between se_1 and att_1 with a p-value of 0.08356.
+
+## Minimum Meal Frequency
+
+### Model 1:
+
+```{r fitting updated mmf model 1}
+tidy(mmf1_cut, conf.int = TRUE)
+
+odds_ratios_mmf1_cut <- exp(coef(mmf1_cut))
+odds_ratios_mmf1_cut
+```
+
+Fitted regression surface:
+
+logit($p_i$) = -1.227 + 0.874$X_1$ + 2.894$X_2$ - 0.161$X_3$ + 0.547$X_4$ + 0.197$X_5$ - 0.021$X_6$
+
+where $p_i$ is the estimated likelihood of an MWRA reporting a child 6-23 months should eat 4 or more meals each day, $X_1$ is an indicator for MRWA who agree giving a child a meal 4 times a day is not difficult at all, $X_2$ is an indicator for MRWA who believes the number of meals people in community think a child 6-23 months should eat each day is 4 or more, $X_3$ is an indicator of MWRA who had heard or seen a message related to breastfeeding or young child nutrition in the past 3 months, $X_4$ is an indicator for MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_5$ is an indicator for MRWA who belong to a women's community group, and $X_6$ is an indicator for MRWA who have given birth in the last 5 years and received antenatal care for their last pregnancy.
+
+```{r confidence intervals mmf 1}
+# for intercept
+exp(-1.73319285)
+exp(-0.7195699)
+
+# for se_2
+exp(0.57969582)
+exp(1.1662174)
+
+# for pn_2
+exp(2.61821379)
+exp(3.1764922)
+
+# for exp
+exp(-0.43181458)
+exp(0.1099389)
+
+# for decision_combined
+exp(0.17399200)
+exp(0.9369635)
+
+# for wg
+exp(-0.08219711)
+exp(0.4775840)
+
+# for received_antenatal_care
+exp(-0.41223123)
+exp(0.3544562)
+```
+
+Interpretation of regression coefficients/odds:
+
+-   Intercept: when all the predictors = 0 (MWRA did not agree that giving a child a meal 4 times a day is not difficult at all, did not agree that the community thinks a child 6-23 months should eat 4 meals a day or more, have not heard a message related to breastfeeding or nutrition in the past 3 months, does not jointly or individually make decisions across all decision categories, does not belong to a community group, and has not received antenatal care for their last pregnancy within the last 5 years), the odds of reporting that a child 6-23 months should eat 4 or more meals a day are about 0.29 more /0.71 times less (between 0.18 times and 0.49 times more in 95% of repeated samples) than an individuals who do the opposite, on average.
+
+-   $\beta_1$ : The odds of reporting that a child 6-23 months should eat 4 or more meals a day are about 2.40 times higher (between 1.76 and 3.21 times higher in 95% of repeated samples) for MWRA who agree that giving a child a meal 4 times a day is not difficult at all compared to women who do not agree that it is not difficult at all, adjusting for the other predictors in the model.
+
+-   $\beta_2$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day are about 18 times higher (between 13.71 and 23.96 times higher in 95% of repeated samples) for MWRA who believe the number of meals people in community think a child 6-23 months should eat each day is 4 or more compared to women who do not believe this, adjusting for all other predictors in the model.
+
+-   $\beta_3$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day are about 0.85 times more (between 0.65 and 1.12 times more in 95% of repeated samples) when the MWRA has been exposed to nutrition/breastfeeding communications compared to those who are not exposed to such communication, adjusting for other predictors in the model.
+
+-   $\beta_4$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day are about 1.73 times higher (between 1.19 and 2.55 times higher for 95% of repeated samples) for MWRA who make decisions regarding their health, financial decisions, AND visting family jointly or themselves compared to MWRA whose husbands exclusively make those decisions for them, adjusting for other predictors in the model.
+
+-   $\beta_5$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day are about 1.22 times higher (between 0.92 and 1.61 times higher in 95% of repeated samples) for MWRA who are a part of a woman's group compared to MWRA that are not a part of a woman's group, adjusting for other predictors in the model.
+
+-   $\beta_6$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day are about 0.98 times more (between 0.66 and 1.43 times more in 95% of repeated samples) for MWRA who received antenatal care for their last birth compared to MWRA who did not receive antenatal care, adjusting for other predictors.
+
+Testing for associations:
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$
+
+$H_A$: at least one of the regression coefficients is non zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1$$X_{i1}$ + $\beta_2$$X_{i2}$ + $\beta_3$$X_{i3}$ + $\beta_4$$X_{i4}$ + $\beta_5$$X_{i5}$ + $\beta_6$$X_{i6}$
+
+```{r mmf 1 associations}
+mmf1_red <- glm(know_2 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(mmf1_red, mmf1_cut, test = "LRT")
+```
+
+There is statistically significant evidence to suggest that at least one of the predictors is associated with the percentage of MWRA who reported a child 6-23 months should eat 4 or more meals each day (p-value \< 0.001).
+
+```{r mmf partial associations}
+# testing for an association between se_2 and know_2
+mmf1_reds <- glm(know_2 ~ pn_2 + exp + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mmf1_reds, mmf1_cut, test = "LRT")
+
+# testing for an association between pn_2 and know_2
+mmf1_redp <- glm(know_2 ~ se_2 + exp + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mmf1_redp, mmf1_cut, test = "LRT")
+
+# testing for an association between exp and know_2
+mmf1_rede <- glm(know_2 ~ se_2 + pn_2 + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mmf1_rede, mmf1_cut, test = "LRT")
+
+# testing for an association between decision_combined and know_2
+mmf1_redd <- glm(know_2 ~ se_2 + pn_2 + exp + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mmf1_redd, mmf1_cut, test = "LRT")
+
+# testing for an association between wg and know_2
+mmf1_redw <- glm(know_2 ~ se_2 + pn_2 + exp + decision_combined + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mmf1_redw, mmf1_cut, test = "LRT")
+
+# testing for an association between received_antenatal_care and know_2
+mmf1_reda <- glm(know_2 ~ se_2 + pn_2 + exp + decision_combined + wg, data = niger, family = binomial(link = "logit"))
+anova(mmf1_reda, mmf1_cut, test = "LRT")
+```
+
+We have very strong evidence to suggest that se_2 is associated with know_2 (p-value \< 0.001), pn_2 is associated with know_2 (p-value \< 0.001), and strong evidence to suggest that decision_combined is associated with know_2. There is moderate to weak evidence of association between exp and know_2 (p-value = 0.2439) and between wg and know_2 (p-value = 0.1673). There is very weak evidence to suggest that received_antenatal_care is associated with know_2 (p-value = 0.9156).
+
+### Model 2:
+
+```{r fitting updated model for mmf 2}
+tidy(glm_mmf_2, conf.int = TRUE)
+
+odds_ratios_mmf2
+```
+
+Fitted Regression surface:
+
+logit($p_i$) = -2.491 + 1.650$X_1$ + 1.013$X_2$ + 2.664$X_3$ - 0.097$X_4$ + 0.496$X_5$ + 0.051$X_6$ - 0.289$X_7$
+
+where: where $p_i$ is the estimated likelihood of MWRA who reporting a child 6-23 months should eat 4 or more meals each day, $X_1$ is an indicator for MWRA who agree providing meals 4 times a day ensures them to have adequate strength, $X_2$ is an indicator for MRWA who agree giving a child a meal 4 times a day is not difficult at all, $X_3$ is an indicator for MRWA who believes the number of meals people in community think a child 6-23 months should eat each day is 4 or more, $X_4$ is an indicator for MWRA who had heard or seen a message related to breastfeeding or young child nutrition in the past 3 months, $X_5$ is an indicator for MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_6$ is an indicator for MRWA who belong to a women's community group, and $X_7$ is an indicator for MWRA who have given birth in the years preceding the survey who delivered in a facility for their last birth.
+
+```{r confidence intervals for mmf 2}
+# for intercept:
+exp(-3.1141427)
+exp(-1.888672748)
+
+# for att_2:
+exp(1.1380240)
+exp(2.175606712)
+
+# for se_2:
+exp(0.7190069)
+exp(1.304701712)
+
+# for pn_2:
+exp(2.3825952)
+exp(2.949148441)
+
+# for exp::
+exp(-0.3808422)
+exp(0.186266328)
+
+# for decision_combined:
+exp(0.1243243)
+exp(0.885080746)
+
+# for wg:
+exp(-0.2325765)
+exp(0.336828859)
+
+# for fac_delivery:
+exp(-0.5846032)
+exp(0.002647919)
+```
+
+Interpretation of coefficients:
+
+-   intercept: when all predictors = 0, the estimated likelihood of MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 0.08 times higher (between 0.04 and 0.15 times higher in 95% of repeated samples) compared to when all predictors = 1
+
+-   $\beta_1$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day is about 5.21 times more (between 3.12 and 8.81 times more in 95% of repeated samples) for MWRA who agree providing meals 4 times a day ensures them to have adequate strength compared to MWRA who disagree, adjusting for the other predictors.
+
+-   $\beta_2$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day is about 2.75 times more (between 2.05 and 3.69 times more in 95% of repeated samples) for MWRA who agree that giving a child a meal 4 times a day is not difficult at all compared to women who do not agree that it is not difficult at all, adjusting for the other predictors in the model.
+
+-   $\beta_3$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day is about 14.35 times more (between 10.83 and 19.09 times more in 95% of repeated samples) for MWRA who believes the number of meals people in community think a child 6-23 months should eat each day is 4 or more compared to MWRA who do not believe this, adjusting for other predictors in the model.
+
+-   $\beta_4$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day is about 0.91 times more (between 0.68 and 1.20 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition in the past 3 months compared to MWRA who are not exposed to these messages, adjusting for other predictors in the model.
+
+-   $\beta_5$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day is about 1.64 times more (between 1.13 and 2.42 times more in 95% of repeated samples) for MWRA who responded that she OR her and her partner jointly make decisions for all three categories compared to MWRA whose husbands make those decisions exclusively, adjusting for other predictors in the model.
+
+-   $\beta_6$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day is about 1.05 times more (between 0.79 and 1.40 times more in 95% of repeated samples) for MWRA who belong to a woman's community group compared to MWRA who do not belong to a woman's group, adjusting for other predictors in the model.
+
+-   $\beta_7$: The odds of reporting that a child 6-23 months should eat 4 or more meals a day is about 0.75 times more (between 0.56 and 1.00 times more in 95% of repeated samples) for MWRA who delivered their last birth in a facility compared to MWRA who did not deliver their last birth in a facility, adjustinf for other predictors in the model.
+
+Testing for association:
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = $\beta_7$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$
+
+$H_A$: at least one of the regression coefficients is non zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1$$X_{i1}$ + $\beta_2$$X_{i2}$ + $\beta_3$$X_{i3}$ + $\beta_4$$X_{i4}$ + $\beta_5$$X_{i5}$ + $\beta_6$$X_{i6}$ + $\beta_7$$X_{i7}$
+
+```{r testing for association mmf2}
+mmf2_red <- glm(know_2 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(mmf2_red, glm_mmf_2, test = "LRT")
+```
+
+There is statistically significant evidence to suggest that at least one of the predictors is associated with the percentage of MWRA who reported a child 6-23 months should eat 4 or more meals each day (p-value \< 0.001).
+
+```{r partial associations mmf2}
+# testing for an association between att_2 and know_2
+mmf2_reda <- glm(know_2 ~ se_2 + pn_2 + exp + decision_combined + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mmf2_reda, glm_mmf_2, test = "LRT")
+
+# testing for an association between se_2 and know_2
+mmf2_reds <- glm(know_2 ~ att_2 + pn_2 + exp + decision_combined + wg + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mmf2_reds, glm_mmf_2, test = "LRT")
+
+# testing for an association between pn_2 and know_2
+mmf2_redp <- glm(know_2 ~ att_2 + se_2 + exp + decision_combined + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mmf2_redp, glm_mmf_2, test = "LRT")
+
+# testing for an association between exp and know_2
+mmf2_rede <- glm(know_2 ~ att_2 + se_2 + pn_2 + decision_combined + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mmf1_rede, glm_mmf_2, test = "LRT")
+
+# testing for an association between decision_combined and know_2
+mmf2_redd <- glm(know_2 ~ att_2 + se_2 + pn_2 + exp + wg + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mmf2_redd, glm_mmf_2, test = "LRT")
+
+# testing for an association between wg and know_2
+mmf2_redw <- glm(know_2 ~ att_2 + se_2 + pn_2 + exp + decision_combined + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mmf2_redw, glm_mmf_2, test = "LRT")
+
+# testing for an association between fac_delivery and know_2
+mmf2_redf <- glm(know_2 ~ att_2 + se_2 + pn_2 + exp + decision_combined + wg, data = niger, family = binomial(link = "logit"))
+anova(mmf2_redf, glm_mmf_2, test = "LRT")
+```
+
+We have very strong evidence of an association between att_2 and know_2 (p-value \< 0.001), se_2 and know_2 (p-value \< 0.001), pn_2 and know_2 (p-value \< 0.001), and exp and know_2 ( p-value \< 0.001). We have strong evidence of an association between decision_combined and know_2 (p-value = 0.00847). We have moderately strong evidence of an association between fac_delivery and know_2 (p-value = 0.05212). We have weak evidence of an association between wg and know_2 (p-value = 0.7236).
+
+### Model 3:
+
+```{r updated mmf 3}
+tidy(mmf3_cut, conf.int = TRUE)
+
+odds_ratios_mmf3_cut <- exp(coef(mmf3_cut))
+odds_ratios_mmf3_cut
+```
+
+Fitted regression surface:
+
+logit($p_i$) = -1.326 + 0.865$X_1$ + 2.988$X_2$ - 0.301$X_3$ + 0.660$X_4$ + 0.131$X_5$ + 0.049$X_6$ + 0.842$X_7$ - 0.018$X_8$
+
+where: where $p_i$ is the estimated likelihood of an MWRA reporting a child 6-23 months should eat 4 or more meals each day, $X_1$ is an indicator for MRWA who agree giving a child a meal 4 times a day is not difficult at all, $X_2$ is an indicator for MRWA who believes the number of meals people in community think a child 6-23 months should eat each day is 4 or more, $X_3$ is an indicator for MWRA who had heard or seen a message related to breastfeeding or young child nutrition in the past 3 months, $X_4$ is an indicator for MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives, $X_5$ is an indicator for MRWA who belong to a women's community group, and $X_6$ is an indicator for MWRA who spoke with a family member about their child's nutrition, $X_7$ is an indicator for MWRA who spoke with a healthcare worker about their child's nutrition, $X_8$ is an indicator for MWRA who spoke to nobody about their child's nutrition (speaking to husband is the base class)
+
+```{r confidence intrevals for mmf3}
+# for intercept
+exp(-1.6941556)
+exp(-0.96644056)
+
+# for se_2
+exp(0.5713848)
+exp(1.15708475)
+
+# for pn_2
+exp(2.7074383)
+exp(3.27533181)
+
+# for exp
+exp(-0.5863639)
+exp(-0.01628325)
+
+# for decision_combined
+exp(0.2722374)
+exp(1.06397614)
+
+# for wg
+exp(-0.1501488)
+exp(0.41459717)
+
+# for nutrition2
+exp(-0.6296524)
+exp(0.79344206)
+
+# for nutrition3
+exp(0.4088797)
+exp(1.28913679)
+
+# for nutrition4
+exp(-0.4124389)
+exp(0.38845754)
+```
+
+Interpretation:
+
+-   intercept: when all predictors = 0, the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 0.27 times more (between 0.18 and 0.38 times more in 95% of repeated samples) than when all predictors = 1
+
+-   $\beta_1$:the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 2.38 times more (between 1.77 and 3.18 times more in 95% of repeated samples) for MWRA who agree giving a child a meal 4 times a day is not difficult at all compared to MWRA who do not agree, adjusting for the other predictors in the model.
+
+-   $\beta_2$: the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 19.84 times more (between 14.99 and 26.45 times more in 95% of repeated samples) for MWRA who believes the number of meals people in community think a child 6-23 months should eat each day is 4 or more compared to MWRA who believe otherwise, adjusting for the other predictors in the model.
+
+-   $\beta_3$:the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 0.74 times more (between 0.56 and 0.98 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition in the past 3 months compared to MWRA who were not exposed to these messages, adjusting for the other predictors in the model.
+
+-   $\beta_4$:the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about1.93 times more (between 1.31 and 2.90 times more in 95% of repeated samples) for MWRA who responded that she OR her and her partner jointly make decisions for all three categories compared to MWRA whose husband exclusively makes such decisions, adjusting for the other predictors in the model.
+
+-   $\beta_5$:the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 1.14 times more (between 0.86 and 1.51 times more in 95% of repeated samples) or MWRA who belong to a women's community group compared to MWRA who do not belong to a woman's group, adjusting for the other predictors in the model.
+
+-   $\beta_6$:the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 1.05 times more (between 0.53 and 3.63 times more in 95% of repeated samples) for MWRA who talk to their family members about their child's nutrition compared to MWRA who talk to their husbands about their child's nutrition, adjusting for the other predictors in the model.
+
+-   $\beta_7$:the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 2.33 times more (between 1.51 and 2.32 times more in 95% of repeated samples) for MWRA who talk to a healthcare provider about their child's nutrition compared to MWRA who talk to their husbands about their child's nutrition, adjusting for the other predictors in the model.
+
+-   $\beta_8$: the odds of an MWRA reporting a child 6-23 months should eat 4 or more meals each day is about 0.98 times more (between 0.66 and 1.47 times more in 95% of repeated samples) for MWRA who do not talk to anybody about their child's nutrition compared to MWRA who talk to their husbands about their child's nutrition, adjusting for the other predictors in the model.
+
+Testing for associations:
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = $\beta_7$ = $\beta_8$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$
+
+$H_A$: at least one of the regression coefficients is non zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1$$X_{i1}$ + $\beta_2$$X_{i2}$ + $\beta_3$$X_{i3}$ + $\beta_4$$X_{i4}$ + $\beta_5$$X_{i5}$ + $\beta_6$$X_{i6}$ + $\beta_7$$X_{i7}$ + $\beta_8$$X_{i8}$
+
+```{r overall associations mmf3}
+mmf3_red <- glm(know_2 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(mmf3_red, mmf3_cut, test = "LRT")
+```
+
+There is statistically significant evidence to suggest that at least one of the predictors is associated with the percentage of MWRA who reported a child 6-23 months should eat 4 or more meals each day (p-value \< 0.001).
+
+```{r partial assoc mmf3}
+# for se_2
+mmf3_reds <- glm(know_2 ~ + pn_2 + exp + decision_combined + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf3_reds, mmf3_cut, test = "LRT")
+
+# for pn_2
+mmf3_redp <- glm(know_2 ~ se_2 + exp + decision_combined + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf3_redp, mmf3_cut, test = "LRT")
+
+#for exp
+mmf3_rede <- glm(know_2 ~ se_2 + pn_2 + decision_combined + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf3_rede, mmf3_cut, test = "LRT")
+
+# for decision_combined
+mmf3_redd <- glm(know_2 ~ se_2 + pn_2 + exp + wg + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf3_redd, mmf3_cut, test = "LRT")
+
+# for wg
+mmf3_redw <- glm(know_2 ~ se_2 + pn_2 + exp + decision_combined + nutrition, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf3_redw, mmf3_cut, test = "LRT")
+
+# for nutrition
+mmf3_redn <- glm(know_2 ~ se_2 + pn_2 + exp + decision_combined + wg, 
+                 data = niger, 
+                 family = binomial(link = "logit"))
+anova(mmf3_redn, mmf3_cut, test = "LRT")
+```
+
+We have very strong evidence to suggest an association between se_2 and know_2 (p-value \< 0.001), pn_2 and know_2 (p-value \< 0.001), decision_combined and know_2 (p-value = 0.0007189), strong evidence to suggest an association between nutrition and know_2 (p-value = 0.001581), moderately strong evidence to suggest an association between exp and know_2 (p-value = 0.03826) and weak evidence to suggest an association between wg and know_2 (p-vale = 0.3613).
+
+## Minimum Dietary Diversity
+
+### Model 1:
+
+```{r fitting the updated mdd model 1}
+tidy(mdd1_cut)
+
+odds_ratios_mdd1_cut <- exp(coef(mdd1_cut))
+odds_ratios_mdd1_cut
+```
+
+Fitted regression surface:
+
+logit($p_i$) = -3.77 + 1.35$X_1$ + 1.52$X_2$ + 2.431$X_3$ + 0.218$X_4$ + 0.440$X_5$ + 0.687$X_6$ - 0.368$X_7$
+
+where $p_i$ percentage of MWRA who reported that the number of different types of food a child 6-23 months should eat a day is 4 or more, $X_1$ is the percentage of MWRA who agree children who eat a variety of foods are less likely to get sick, $X_2$ percentage of MRWA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all, $X_3$ is the percentage of MRWA who believes number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more; 1 = those who believe the number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more, 0 = otherwise , $X_4$ is an indicator for the percentage of MWRA who had heard or seen a message related to breastfeeding or young child nutrition, $X_5$ is an indicator for Percentage of MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives; 1 = responded either decides herself or jointly with her partner on all three decision categories, 0 = otherwise, $X_6$ is the Percentage of MRWA who belong to a women's community group, and $X_7$ percentage of MRWA who have given birth in the last 5 years and received antenatal care for their last pregnancy.
+
+```{r confidence intrevals for mdd1}
+# for intercept
+exp(-4.67)
+exp(-2.95)
+
+# for att_3
+exp(0.661)
+exp(2.11)
+
+# for se_3
+exp(1.13)
+exp(1.91)
+
+# for pn_3
+exp(2.12)
+exp(2.75)
+
+# for decision_combined
+exp(0.0660)
+exp(0.811)
+
+# for wg
+exp(0.368)
+exp(1.01)
+
+# recieved_antenatal_care
+exp(-0.837)
+exp(0.111)
+
+# for exp
+exp(-0.109)
+exp(0.544)
+
+```
+
+Intercept: When all predictors are at their reference level, the odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is approximately 0.02 times (between 0.009 and 0.05 times more in 95% of repeated samples) more than when all predictors are at their alternative levels.
+
+$\beta_1$: The odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is about 3.85 times more (between 1.9 and 8.2 times more in 95% of repeated samples) for MWRA who agree that children who eat a variety of foods are less likely to get sick compared to MWRA who do not agree, adjusting for the other predictors in the model.
+
+$\beta_2$: The odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is about 4.55 times more (between 3.1 and 6.8 times more in 95% of repeated samples) for MWRA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all compared to MWRA who find it difficult, adjusting for the other predictors in the model.
+
+$\beta_3$: The odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is about 11.36 times more (between 8.3 and 15.6 times more in 95% of repeated samples) for MWRA who believe the number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more compared to MWRA who believe otherwise, adjusting for the other predictors in the model.
+
+$\beta_4$: The odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is about 1.24 times more (between 0.889 and 1.72 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition compared to MWRA who were not exposed to these messages, adjusting for the other predictors in the model.
+
+$\beta_5$: The odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is about 1.55 times more (between 1.1 and 2.3 times more in 95% of repeated samples) for MWRA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives compared to MWRA whose husband exclusively makes such decisions, adjusting for the other predictors in the model.
+
+$\beta_6$: The odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is about 1.98 times more (between 1.4 and 2.7 times more in 95% of repeated samples) for MWRA who belong to a women's community group compared to MWRA who do not belong to a women's group, adjusting for the other predictors in the model.
+
+$\beta_7$: The odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is about 0.691 times (between 0.433 and 1.118 times more in 95% of repeated samples) for MWRA who have given birth in the last 5 years and received antenatal care for their last pregnancy compared to MWRA who have not received antenatal care, adjusting for the other predictors in the model.
+
+Testing for associations:
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = $\beta_7$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$ $H_A$: at least one of the regression coefficients is non-zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1X_{i1}$ + $\beta_2X_{i2}$ + $\beta_3X_{i3}$ + $\beta_4X_{i4}$ + $\beta_5X_{i5}$ + $\beta_6X_{i6}$ + $\beta_7$$X_{i7}$ We have very strong evidence to suggest an association between att_3 and mdd1 (p-value \< 0.001), se_3 and mdd1 (p-value \< 0.001), pn_3 and mdd1 (p-value \< 0.001), decision_combined and mdd1 (p-value \< 0.001), moderately strong evidence to suggest an association between wg and mdd1 (p-value = 0.049) and weak evidence to suggest an association between exp and mdd1 (p-value = 0.234).
+
+```{r overall associations mdd1}
+mdd1_red <- glm(know_3 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(mdd1_red, mdd1_cut, test = "LRT")
+```
+
+there is statistically significant evidence to suggest that at least one of the predictors is associated with the percentage of MWRA who reported that the number of different types of food a child 6-23 months should eat a day is 4 or more(p-value \< 0.001).
+
+```{r partial associations mdd1}
+# testing for an association between know_2 and know_3
+mdd1_reda <- glm(know_3 ~ att_3 + se_3 + pn_3 + wg + decision_combined + exp + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mdd1_reda, glm_mdd_1, test = "LRT")
+
+# testing for an association between att_3 and know_3
+mdd1_reds <- glm(know_3 ~ know_2 + se_3 + pn_3 + wg + decision_combined + exp + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mdd1_reds, glm_mdd_1, test = "LRT")
+
+# testing for an association between se_3 and know_3
+mdd1_redw <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mdd1_redw, glm_mdd_1, test = "LRT")
+
+# testing for an association between pn_3 and know_3
+mdd1_redd <- glm(know_3 ~ know_2 + att_3 + se_3 + wg + decision_combined + exp + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mdd1_redd, glm_mdd_1, test = "LRT")
+
+# testing for an association between wg and know_3
+mdd1_rede <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + decision_combined + exp + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mdd1_rede, glm_mdd_1, test = "LRT")
+
+# testing for an association between decision_combined and know_3
+mdd1_redq <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg  + exp + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mdd1_redq, glm_mdd_1, test = "LRT")
+
+# testing for an association between exp and know_3
+mdd1_redr <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + received_antenatal_care, data = niger, family = binomial(link = "logit"))
+anova(mdd1_redr, glm_mdd_1, test = "LRT")
+
+# testing for an association between recieved_antenatal_care and know_3
+mdd1_redz <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp, data = niger, family = binomial(link = "logit"))
+anova(mdd1_redz, glm_mdd_1, test = "LRT")
+
+```
+
+there is very strong evidence that indicates know_3 is associated with know_2, se_3, pn_3, and wg with p-values close to or equal to 0. There is moderately strong evidence that know_3 is associated with att_3 and exp with p-values of 0.02877 and 0.04736 respectively. There is moderate evidence that know_3 is associated with decision_combined and recieved_antenatal_care with p-values of 0.1503 and 0.3225 respectively.
+
+### Model 2:
+
+```{r fitting the updated mdd model 2}
+tidy(mdd2_cut)
+
+odds_ratios_mdd2_cut <- exp(coef(mdd2_cut))
+odds_ratios_mdd2_cut
+```
+
+Fitted regression surface:
+
+logit($p_i$) = -4.19 + 1.36$X_1$ + 1.47$X_2$ + 2.41$X_3$ + 0.200$X_4$ + 0.492$X_5$ + 0.694$X_6$ + 0.156$X_7$
+
+where $p_i$ percentage of MWRA who reported that the number of different types of food a child 6-23 months should eat a day is 4 or more, $X_1$ is the percentage of MWRA who agree children who eat a variety of foods are less likely to get sick, $X_2$ percentage of MRWA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all, $X_3$ is the percentage of MRWA who believes number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more; 1 = those who believe the number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more, 0 = otherwise , $X_4$ is an indicator for the percentage of MWRA who had heard or seen a message related to breastfeeding or young child nutrition, $X_5$ is an indicator for Percentage of MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives; 1 = responded either decides herself or jointly with her partner on all three decision categories, 0 = otherwise, $X_6$ is the Percentage of MRWA who belong to a women's community group, and $X_7$ percentage of MWRA who have given birth in the years preceding the survey who delivered in a facility for their last birth.
+
+```{r confidence intrevals for mdd2}
+# for intercept
+exp(-5.0)
+exp(-3.44)
+
+# for att_3
+exp(0.676)
+exp(2.12)
+
+# for se_3
+exp(1.07)
+exp(1.88)
+
+# for pn_3
+exp(2.1)
+exp(2.73)
+
+# for decision_combined
+exp(0.124)
+exp(0.857)
+
+# for wg
+exp(0.375)
+exp(1.02)
+
+# fac_delivery
+exp(-0.176)
+exp(0.487)
+
+# for exp
+exp(-0.129)
+exp(0.528)
+
+```
+
+Interpretation:
+
+Intercept: When all predictors are at their reference level, the odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is approximately 0.015 times (between 0.006 and 0.03 times in 95% of repeated samples) more than when all predictors are at their alternative levels. $\beta_1$: The odds of a MWRA reporting that if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick is about 3.9 times more (between 1.96 and 8.32 times more in 95% of repeated samples) for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model.
+
+$\beta_2$: The odds of a MWRA reporting that giving a child a minimum of 4 or more different types of food a day is not difficult at all is about 4.36 times more (between 2.9 and 6.5 times more in 95% of repeated samples) for MWRA who say it is not difficult compared to MWRA who find it difficult, adjusting for the other predictors in the model.
+
+$\beta_3$: The odds of a MWRA reporting that the number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more is about 11.14 times more (between 8.2 and 15.33 times more in 95% of repeated samples) for MWRA who believe this compared to MWRA who do not believe so, adjusting for the other predictors in the model.
+
+$\beta_4$: The odds of a MWRA reporting that giving only breast milk to the baby for the first 6 months is not difficult at all is about 1.22 times more (between 0.87 and 1.69 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition compared to MWRA who were not exposed to these messages, adjusting for the other predictors in the model.
+
+$\beta_5$: The odds of a MWRA reporting that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives is about 1.64 times more (between 1.13 and 2.35 times more in 95% of repeated samples) for MWRA who responded in the affirmative compared to MWRA who do not, adjusting for the other predictors in the model.
+
+$\beta_6$: The odds of a MWRA reporting that belonging to a women's community group is not difficult at all is about 2 times more (between 1.45 and 2.77 times more in 95% of repeated samples) for MWRA who belong to such a group compared to MWRA who do not, adjusting for the other predictors in the model.
+
+$\beta_7$: The odds of a MWRA reporting that giving only breast milk to the baby for the first 6 months is not difficult at all is about 1.17 times more (between 0.84 and 1.63 times more in 95% of repeated samples) for MWRA who have given birth in the years preceding the survey and delivered in a facility for their last birth compared to MWRA who have not delivered in a facility, adjusting for the other predictors in the model. Testing for associations:
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = $\beta_7$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$ $H_A$: at least one of the regression coefficients is non-zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1X_{i1}$ + $\beta_2X_{i2}$ + $\beta_3X_{i3}$ + $\beta_4X_{i4}$ + $\beta_5X_{i5}$ + $\beta_6X_{i6}$ + $\beta_7$$X_{i7}$
+
+```{r overall associations mdd2}
+mdd2_red <- glm(know_3 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(mdd2_red, mdd2_cut, test = "LRT")
+```
+
+there is statistically significant evidence to suggest that at least one of the predictors is associated with the percentage of MWRA who reported that the number of different types of food a child 6-23 months should eat a day is 4 or more(p-value \< 0.001).
+
+```{r partial associations mdd2}
+# testing for an association between know_2 and know_3
+mdd2_reda <- glm(know_3 ~ att_3 + se_3 + pn_3 + wg + decision_combined + exp + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mdd2_reda, glm_mdd_2, test = "LRT")
+
+# testing for an association between att_3 and know_3
+mdd2_reds <- glm(know_3 ~ know_2 + se_3 + pn_3 + wg + decision_combined + exp + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mdd2_reds, glm_mdd_2, test = "LRT")
+
+# testing for an association between se_3 and know_3
+mdd2_redw <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mdd2_redw, glm_mdd_2, test = "LRT")
+
+# testing for an association between pn_3 and know_3
+mdd2_redd <- glm(know_3 ~ know_2 + att_3 + se_3 + wg + decision_combined + exp + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mdd2_redd, glm_mdd_2, test = "LRT")
+
+# testing for an association between wg and know_3
+mdd2_rede <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + decision_combined + exp + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mdd2_rede, glm_mdd_2, test = "LRT")
+
+# testing for an association between decision_combined and know_3
+mdd2_redq <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg  + exp + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mdd2_redq, glm_mdd_2, test = "LRT")
+
+# testing for an association between exp and know_3
+mdd2_redr <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + fac_delivery, data = niger, family = binomial(link = "logit"))
+anova(mdd2_redr, glm_mdd_2, test = "LRT")
+
+# testing for an association between fac_delivery and know_3
+mdd2_redz <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp, data = niger, family = binomial(link = "logit"))
+anova(mdd2_redz, glm_mdd_2, test = "LRT")
+
+```
+
+there’s moderately strong evidence that indicates know_3 is associated with att_3 , decision_combined, exp, and fac_delivery with a p-value of 0.02602, 0.1015, 0.0735, and 0.1307 respectively. There is very strong evidence that indicates know_3 is associated with know_2, pn_3, and wg with a p-value of almost 0. There is extremely strong evidence that indicates know_3 is associated with se_3 with a p-value of 0.
+
+### Model 3:
+
+```{r fitting the updated mdd model 3}
+tidy(mdd3_cut)
+
+odds_ratios_mdd3_cut <- exp(coef(mdd3_cut))
+odds_ratios_mdd3_cut
+```
+
+Fitted regression surface:
+
+logit($p_i$) = -3.93 + 1.31$X_1$ + 1.50$X_2$ + 2.50$X_3$ + 0.122$X_4$ + 0.478$X_5$ + 0.714$X_6$ - 0.0182$X_7$
+
+where $p_i$ percentage of MWRA who reported that the number of different types of food a child 6-23 months should eat a day is 4 or more, $X_1$ is the percentage of MWRA who agree children who eat a variety of foods are less likely to get sick, $X_2$ percentage of MRWA who say giving a child a minimum of 4 or more different types of food a day is not difficult at all, $X_3$ is the percentage of MRWA who believes number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more; 1 = those who believe the number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more, 0 = otherwise , $X_4$ is an indicator for the percentage of MWRA who had heard or seen a message related to breastfeeding or young child nutrition, $X_5$ is an indicator for Percentage of MRWA who responded that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives; 1 = responded either decides herself or jointly with her partner on all three decision categories, 0 = otherwise, $X_6$ is the Percentage of MRWA who belong to a women's community group, and $X_7$ percentage of MWRA who spoke with 1) husband/partner, 2) family member, 3) health provider, 4) nobody about child's nutrition.
+
+```{r confidence intrevals for mdd3}
+# for intercept
+exp(-4.73)
+exp(-3.19)
+
+# for att_3
+exp(0.608)
+exp(2.08)
+
+# for se_3
+exp(1.10)
+exp(1.90)
+
+# for pn_3
+exp(2.18)
+exp(2.82)
+
+# for decision_combined
+exp(0.105)
+exp(0.849)
+
+# for wg
+exp(0.390)
+exp(1.04)
+
+# nutrition
+exp(-0.0274)
+exp(-0.0102)
+
+# for exp
+exp(-0.212)
+exp(0.454)
+
+```
+
+Intercept: When all predictors are at their reference level, the odds of a MWRA reporting that a child 6-23 months should eat 4 or more different types of food a day is approximately 0.019 times (between 0.008 and 0.04 times in 95% of repeated samples) more than when all predictors are at their alternative levels. $\beta_1$: The odds of a MWRA reporting that if a baby is exclusively breastfed for 6 months, he/she is less likely to be sick is about 3.69 times more (between 1.84 and 8 times more in 95% of repeated samples) for MWRA who agree compared to MWRA who do not agree, adjusting for the other predictors in the model. $\beta_2$: The odds of a MWRA reporting that giving a child a minimum of 4 or more different types of food a day is not difficult at all is about 4.48 times more (between 3 and 6.68 times more in 95% of repeated samples) for MWRA who say it is not difficult compared to MWRA who find it difficult, adjusting for the other predictors in the model.
+
+$\beta_3$: The odds of a MWRA reporting that the number of different types of food people in the community think a child 6-23 months should eat a day is 4 or more is about 12.19 times more (between 8.88 and 16.77 times more in 95% of repeated samples) for MWRA who believe this compared to MWRA who do not believe so, adjusting for the other predictors in the model.
+
+$\beta_4$: The odds of a MWRA reporting that giving only breast milk to the baby for the first 6 months is not difficult at all is about 1.13 times more (between 0.80 and 1.57 times more in 95% of repeated samples) for MWRA who had heard or seen a message related to breastfeeding or young child nutrition compared to MWRA who were not exposed to these messages, adjusting for the other predictors in the model.
+
+$\beta_5$: The odds of a MWRA reporting that she OR her and her partner jointly make decisions for all three categories: household purchases, healthcare, and visiting relatives is about 1.61 times more (between 1.48 and 2.83 times more in 95% of repeated samples) for MWRA who responded in the affirmative compared to MWRA who do not, adjusting for the other predictors in the model.
+
+$\beta_6$: The odds of a MWRA reporting that belonging to a women's community group is not difficult at all is about 2.04 times more (between 1.4 and 2.8 times more in 95% of repeated samples) for MWRA who belong to such a group compared to MWRA who do not, adjusting for the other predictors in the model. $\beta_7$: The odds of a MWRA reporting that speaking with nobody about their child's nutrition is not difficult at all is about 0.98 times (between 0.80 and 0.98 times more in 95% of repeated samples) for MWRA who have spoken with nobody compared to MWRA who have spoken to their husbands, family members, or healthcare providers about their child's nutrition, adjusting for the other predictors in the model. Testing for associations:
+
+$H_0$: $\beta_1$ = $\beta_2$ = $\beta_3$ = $\beta_4$ = $\beta_5$ = $\beta_6$ = $\beta_7$ = 0 (the predictors are not associated with the outcome variable) $\rightarrow$ reduced model: logit($p_i$) = $\beta_0$ $H_A$: at least one of the regression coefficients is non-zero (at least one of the predictors is associated with the outcome variable) $\rightarrow$ full model: logit($p_i$) = $\beta_0$ + $\beta_1X_{i1}$ + $\beta_2X_{i2}$ + $\beta_3X_{i3}$ + $\beta_4X_{i4}$ + $\beta_5X_{i5}$ + $\beta_6X_{i6}$ + $\beta_7$$X_{i7}$
+
+```{r overall associations mdd3}
+mdd3_red <- glm(know_3 ~ 1, data = niger, family = binomial(link = "logit"))
+anova(mdd3_red, mdd3_cut, test = "LRT")
+```
+
+there is statistically significant evidence to suggest that at least one of the predictors is associated with the percentage of MWRA who reported that the number of different types of food a child 6-23 months should eat a day is 4 or more(p-value \< 0.001).
+
+```{r partial associations mdd3}
+# testing for an association between know_2 and know_3
+mdd3_reda <- glm(know_3 ~ att_3 + se_3 + pn_3 + wg + decision_combined + exp + nutrition, data = niger, family = binomial(link = "logit"))
+anova(mdd3_reda, glm_mdd_3, test = "LRT")
+
+# testing for an association between att_3 and know_3
+mdd3_reds <- glm(know_3 ~ know_2 + se_3 + pn_3 + wg + decision_combined + exp + nutrition, data = niger, family = binomial(link = "logit"))
+anova(mdd3_reds, glm_mdd_3, test = "LRT")
+
+# testing for an association between se_3 and know_3
+mdd3_redw <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp + nutrition, data = niger, family = binomial(link = "logit"))
+anova(mdd3_redw, glm_mdd_3, test = "LRT")
+
+# testing for an association between pn_3 and know_3
+mdd3_redd <- glm(know_3 ~ know_2 + att_3 + se_3 + wg + decision_combined + exp + nutrition, data = niger, family = binomial(link = "logit"))
+anova(mdd3_redd, glm_mdd_3, test = "LRT")
+
+# testing for an association between wg and know_3
+mdd3_rede <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + decision_combined + exp + nutrition, data = niger, family = binomial(link = "logit"))
+anova(mdd3_rede, glm_mdd_3, test = "LRT")
+
+# testing for an association between decision_combined and know_3
+mdd3_redq <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg  + exp + nutrition, data = niger, family = binomial(link = "logit"))
+anova(mdd3_redq, glm_mdd_3, test = "LRT")
+
+# testing for an association between exp and know_3
+mdd3_redr <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + nutrition, data = niger, family = binomial(link = "logit"))
+anova(mdd3_redr, glm_mdd_3, test = "LRT")
+
+# testing for an association between nutrition and know_3
+mdd3_redz <- glm(know_3 ~ know_2 + att_3 + se_3 + pn_3 + wg + decision_combined + exp, data = niger, family = binomial(link = "logit"))
+anova(mdd3_redz, glm_mdd_3, test = "LRT")
+```
+
+there is very strong evidence that indicates know_3 is associated with know_2, se_3, pn_3, nutrition, and wg with p-values close to or equal to 0. There is relatively strong evidence that know_3 is associated with att_3 with a p-value of 0.05317. There is moderately strong evidence that know_3 is associated with decision_combined and exp with p-values of 0.1356 and 0.1775 respectively.
+
+# Critiques/Expansion of Analysis
+
+A fundamental component of any empirical research is the clear definition and accessible documentation of variables used in the analysis. This critique highlights transparency and measurement concerns in a Niger study.Firstly, the lack of a clear variable key linking survey responses to the analysis creates a barrier to understanding how data was translated into quantifiable variables. This omission significantly undermines the ability to understand how survey responses were translated into quantifiable data. Peer reviews and fellow researchers are unable to trace how data inputs are derived from the survey questions, complicating the interpretation of the results. Secondly, the study's reliance on self-reported data introduces potential biases. Participants might answer based on social desirability or be influenced by a spouse's presence, leading to skewed results. Finally, the critique identifies the missing information on how missing data was handled. Depending on the approach used, missing data can introduce further biases or mask underlying patterns. To improve the study, researchers should provide a detailed variable key, acknowledge and address potential biases, and explain their approach to handling missing data. These steps would enhance transparency, strengthen the analysis, and allow for more reliable interpretation of the study's findings.
+
+# Findings and Conclusion
+
+The shortcomings identified in the survey clarity, variable documentation, and data collection approach raise substantial concerns about the study’s reliability and validity. To enhance the credibility of future research, it is imperative to address these issues by providing comprehensive variable keys and metadata. As expected, our findings do not match those of the study as we used different dependent variables.
+
+## note: 4 pages double spaced, 12 pt font MAX (not including graphics/tables/code)
+
+# References
+
+Global strategy for infant and young child feeding. Geneva: WHO; 2003. Available: <https://www.who.int/publications/i/item/9241562218>.
+
+Schwandt HM, Skinner J, Takruri A, Storey D. The Integrated Gateway Model: A catalytic approach to behavior change. International Journal of Gynecology & Obstetrics. 2015;130: E62–E68. <pmid:26003817>

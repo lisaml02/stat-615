@@ -1,0 +1,271 @@
+---
+title: "hw_10"
+author: "lisa liubovich"
+date: "2024-04-10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r loading packages}
+library(tidyverse)
+library(broom)
+library(GGally)
+```
+
+# Steroid
+
+## 1.
+
+```{r loading data}
+steroid <- read_csv("https://dcgerard.github.io/stat_415_615/data/steroid.csv")
+glimpse(steroid)
+```
+
+```{r s1}
+lm_steroid_quad <- lm(steroid ~ age + I(age^2), data = steroid)
+tidy(lm_steroid_quad)
+```
+
+Model being fitted:
+
+$Y_{i}$ = $\beta_0$ + $\beta_1$$X_{i1}$ + $\beta_2$ $X_{i2}^2$ + $\varepsilon_{i}$
+
+Where $Y_{i}$ is the predicted level of steroid for all observations i, $X_{i1}$ is age in years for observations i, $X_{i2}$ is age in years squared for observations i.
+
+## 2.
+
+```{r s2}
+ggplot(steroid, aes(x = age, y = steroid)) +
+  geom_point() +
+  geom_smooth(method = "lm",
+              se = FALSE,
+              formula = y ~ x + I(x^2))
+```
+
+Yes, the quadratic regression function appears to be a good fit for the data here.
+
+## 3.
+
+```{r s3}
+a_tlmsq <- augment(lm_steroid_quad)
+ggplot(a_tlmsq, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+```
+
+```{r}
+ggplot(a_tlmsq, aes(x = age, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+```
+
+```{r}
+lm_steroid <- lm(steroid ~ age, steroid)
+a_lmsteroid <- augment(lm_steroid)
+ggplot(a_lmsteroid, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+```
+
+Without the quadratic term, the curve is a lot more pronounced. The vertical spread of the residual plot with the quadratic term isn't the best, but it isn't crazy, so we can assume constant variance.
+
+## 4.
+
+$H_{0}$: $\beta_1$ = $\beta_2$ = 0 $\rightarrow$ $Y_{i}$ = $\beta_0$ + $\varepsilon_{i}$
+
+$H_{A}$: at least one $\beta_1$ or $\beta_2$ is non-zero $\rightarrow$ $Y_{i}$ = $\beta_0$ + $\beta_1$ $X_{i1}$ + $\beta_2$ $X_{i2}^2$ + $\varepsilon_{i}$
+
+```{r s4}
+glance(lm_steroid_quad)
+```
+
+We have very strong evidence of an association between age and steroid (p-value = 1.67764e^-09^ ).
+
+## 5.
+
+```{r s5}
+summary(lm_steroid_quad)
+```
+
+The multiple R^2^ is 0.8143, meaning that 81.43% is the proportionate reduction of total variation in Y associated with the use of the set of the variables $X_{i1}$ and $X_{i2}^2$ . This tells us that this model is a relatively good fit for the data.
+
+## 6.
+
+```{r s6}
+ages <- data.frame(age = c(10, 15, 20))
+predict(lm_steroid_quad, newdata = ages, interval = "confidence", level = 0.95)
+```
+
+Mean steroid level \@ age 10: 10.57 (will fall between 8.66 and 12.48 in 95% of repeated samples)
+
+Mean steroid level \@ age 15: 20.14 (will fall between 18.30 and 21.98 in 95% of repeated samples)
+
+Mean steroid level \@ age 20: 23.79 (will fall between 22.02 and 25.56 in 95% of repeated samples)
+
+## 7.
+
+first, I would check if an age of 4 is within the range of data.
+
+```{r s7}
+range(steroid$age)
+```
+
+Since 4 is out of range of our data, I would refuse to make a prediction for a 4 year old female since it would be an inappropriate extrapolation.
+
+## 8.
+
+```{r s8}
+anova(lm_steroid, lm_steroid_quad)
+```
+
+$H_{0}$: the quadratic term does not contribute significantly to the model
+
+$H_{A}$: the quadratic term does contribute significantly to the model
+
+We have strong evidence to reject the null hypothesis and conclude that the quadratic term does contribute significantly to the model (p-value of 3.708e^-05^).
+
+## 9.
+
+$H_{0}$: $Y_{i}$ = $\beta_0$ + $\beta_1$ $X_{i1}$ + $\varepsilon_{i}$
+
+$H_{A}$: $Y_{i}$ =$\beta_0$ + $\beta_1$ $X_{i1}$ + $\beta_{11}$ $X_{i1}^2$ + $\varepsilon_{i}$
+
+implicit assumption: the reduced model is a subset of the full model
+
+```{r s9}
+anova(lm_steroid, lm_steroid_quad)
+```
+
+We have strong evidence to suggest a lack of fit of the reduced model; that is, we have strong evidence to reject the null hypothesis that the reduced model is true (p-value of 3.708e^-05^ )
+
+# County Demographic Info
+
+```{r loading cdi data}
+cdi <- read_csv("https://dcgerard.github.io/stat_415_615/data/cdi.csv")
+```
+
+## 1.
+
+```{r cdi 1}
+cdi <- mutate(cdi,
+              region = factor(region))
+lm_cdi <- lm(physicians ~ region + pop + total_income, cdi)
+tidy(lm_cdi)
+```
+
+Model fit:
+
+$Y_{i}$ = $\beta_0$ + $\beta_1$ $X_{i1}$ + $\beta_2$ $X_{i2}$ + $\beta_{3}$ $X_{i3}$ + $\beta_4$ $X_{i4}$ + $\beta_5$ $X_{i5}$ + $\varepsilon_{i}$
+
+where:
+
+$Y_{i}$ is the number of professionally active non-federal physicians during 1990 for observations i
+
+$\beta_0$ is the y - intercept
+
+Region has 4 levels, so there are 3 classes which can be represented with three indicator variables:
+
+$X_{i1}$ : 1 if NE, 0 otherwise
+
+$X_{i2}$ : 1 if S, 0 otherwise
+
+$X_{i3}$ : 1 if W, 0 otherwise
+
+NC is the base class
+
+$X_{i4}$ is the total population
+
+$X_{i5}$ is the total personal income
+
+## 2.
+
+```{r cdi 2}
+lm_reduced <- lm(physicians ~ 1, cdi)
+anova(lm_reduced, lm_cdi)
+```
+
+We have strong evidence to reject the null hypothesis that the reduced model is true; that is, we have evidence of lack-of-fit for the reduced model and should include the other variables in order to have a good fit (p-value of 2.2e^-16^ ).
+
+## 3.
+
+Model for south:
+
+$Y_{i}$ = $\beta_0$ + $\beta_1$ (0) + $\beta_2$ (1) + $\beta_3$ (0) + $\beta_4$ $X_{i4}$ + $\beta_5$ $X_{i5}$ + $\varepsilon_{i}$ $\rightarrow$ $Y_{i}$ = $\beta_0$ + $\beta_2$ + $\beta_4$ $X_{i4}$ + $\beta_5$ $X_{i5}$ + $\varepsilon_{i}$
+
+Model for west:
+
+$Y_{i}$ = $\beta_0$ + $\beta_1$ (0) + $\beta_2$ (0) + $\beta_3$ (1) + $\beta_4$ $X_{i4}$ + $\beta_5$ $X_{i5}$ +$\varepsilon_{i}$ $\rightarrow$ $Y_{i}$ = $\beta_0$ + $\beta_3$ + $\beta_4$ $X_{i4}$ + $\beta_5$ $X_{i5}$ + $\varepsilon_{i}$
+
+model for south - model for west = $\beta_2$ - $\beta_3$
+
+```{r cdi 3}
+tidy(lm_cdi)
+```
+
+$\beta_2$ = 45.68986, $\beta_3$ = -145.5264
+
+s($\beta_2$) = 71.395417787, s($\beta_3$) = 85.152925853
+
+```{r cdi 3 ci}
+45.68986 - (-145.5264)
+sqrt(71.395417787^2 + 85.152925853^2)
+
+191.2163 - 1.96*111.123
+191.2163 + 1.96*111.123
+```
+
+The southern region has on average 191.2163 more physicians (95% CI: 26.58478 less physicians to 409.0174 more physicians) than the western region, adjusting for total population and annual income.
+
+## 4.
+
+$H_{0}$: $\beta_1$ = $\beta_2$ = $\beta_3$ = 0
+
+$H_{A}$: at least one of $\beta_1$, $\beta_2$, or $\beta_3$ are non-zero
+
+```{r cdi 4}
+lm_cdi_reduced <- lm(physicians ~ pop + total_income, cdi)
+anova(lm_cdi_reduced, lm_cdi)
+```
+
+We do not have evidence to reject the null hypothesis that there is no geographic effect (p-value of 0.121).
+
+## 5.
+
+```{r cdi 5}
+lm_cdi_int <- lm(physicians ~ region + (pop*total_income), cdi)
+anova(lm_cdi, lm_cdi_int)
+```
+
+There is weak evidence to suggest that there is an interaction effect between population and total income, thus there is weak evidence to suggest we should add such an interaction term to our model (p-value of 0.06436).
+
+# Conceptual Exercises
+
+## 1.
+
+with help from ChatGPT for syntax: <https://chat.openai.com/c/dcef4e40-386b-49de-bd50-fea283b27a60>
+
+```{r ce1}
+response_function <- function(X1, X2) 10 + 4*X1 + 3*X2 - 2*X1*X2
+X2_range <- seq(-1, 5, by = 0.1)
+
+data_plot <- data.frame(X2 = X2_range) %>%
+  mutate(Y_X1_1 = response_function(X1 = 1, X2 = X2_range),
+         Y_X1_3 = response_function(X1 = 3, X2 = X2_range))
+
+ggplot(data_plot, aes(x = X2)) +
+  geom_line(aes(y = Y_X1_1), color = "blue") +
+  geom_line(aes(y = Y_X1_3), color = "red") +
+  labs(x = "X2", y = "Expected Value of Y", title = "Conditional Effects Plot") +
+  scale_color_manual(values = c("blue", "red"), name = "X1", labels = c("1", "3"))
+
+
+```
+
+The plot shows that the effects of $X_{1}$ and $X_{2}$ on Y are not additive by showing that the association between $X_1$ and Y are dependent on the levels of $X_2$ and vice versa; specifically, if the effects were additive, the lines would be parallel. The lines are clearly intersecting, indicating that the relationship between $X_2$ and Y is not the same at different levels of $X_1$.
+
+## 2.
+
+I would hesitate to say that this is an unfair coding scheme, as our domain knowledge indicates that there are societal factors that systematically disadvantage women in learning opportunities or environments related to the task being studied. The positive coefficient for gender could reflect underlying biases rather than inherent learning differences between men and women. If you recoded the variable to be 1 for females and 0 otherwise and you found a negative coefficient for the variable, that could tell you that the coding was fair.
